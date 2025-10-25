@@ -2,7 +2,7 @@
 #include <cassert>
 using namespace std;
 
-void lower_to_upper(char* str, size_t size)
+void lower_to_upper(char *str, size_t size)
 {
     for (size_t i = 0; i < size; ++i)
     {
@@ -10,7 +10,7 @@ void lower_to_upper(char* str, size_t size)
         {
             str[i] = str[i] - 32;
         }
-        //putchar(str[i]);
+        // putchar(str[i]);
     }
 }
 
@@ -21,15 +21,15 @@ void test1()
     lower_to_upper(str, sizeof(str) / sizeof(char));
 
     cout << str << endl;
-    printf("%s\n",str);
+    printf("%s\n", str);
 
-    int arr[] = {10,20,30};
+    int arr[] = {10, 20, 30};
     cout << arr << endl;
 }
 
-int my_strlen1(const char* str)
+int my_strlen1(const char *str)
 {
-    const char* ch = str;
+    const char *ch = str;
     int num = 0;
     while (*ch != '\0')
     {
@@ -40,7 +40,7 @@ int my_strlen1(const char* str)
     return num;
 }
 
-int my_strlen2(const char* str)
+int my_strlen2(const char *str)
 {
     if (*str == '\0')
     {
@@ -48,12 +48,11 @@ int my_strlen2(const char* str)
     }
 
     return 1 + my_strlen2(++str);
-
 }
 
-int my_strlen3(const char* str)
+int my_strlen3(const char *str)
 {
-    const char* ch = str;
+    const char *ch = str;
     while (*ch != '\0')
     {
         ++ch;
@@ -68,9 +67,9 @@ void func2()
     cout << i << endl;
 }
 
-char* my_strcpy(const char* src, char* dest)
+char *my_strcpy(const char *src, char *dest)
 {
-    char* ret = dest;
+    char *ret = dest;
     while (*src != '\0')
     {
         *dest = *src;
@@ -84,26 +83,36 @@ char* my_strcpy(const char* src, char* dest)
 
 void func3()
 {
-    const char* str1 = "hello world!";
-    char* str2 = (char*)malloc(sizeof(char) * 100);
+    const char *str1 = "hello world!";
+    char *str2 = (char *)malloc(sizeof(char) * 100);
 
-    char* ret = my_strcpy(str1, str2);
+    char *ret = my_strcpy(str1, str2);
 
     cout << ret << endl;
 }
 
-
 // 追加
-char* my_strcat(char* dest, const char* src)
+char *my_strcat(char *dest, const char *src)
 {
-    
+    char *ret = dest;
+    assert(dest != NULL);
+    assert(src != NULL);
+    while (*dest)
+    {
+        dest++;
+    }
+    while ((*dest++ = *src++))
+    {
+        ;
+    }
+    return ret;
 }
 
 int main()
 {
-    //func1();
-    //func2();
-    //func3();
+    // func1();
+    // func2();
+    // func3();
 
     return 0;
 }

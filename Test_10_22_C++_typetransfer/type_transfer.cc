@@ -234,7 +234,6 @@ void function_pointer_conversion()
 
     // 转换为void*（在某些API中需要）
     void *void_func_ptr = reinterpret_cast<void *>(normal_func);
-    
     std::cout << "函数指针: " << normal_func << std::endl;
     std::cout << "转换为void*: " << void_func_ptr << std::endl;
     std::cout << sizeof(normal_func) << std::endl;
