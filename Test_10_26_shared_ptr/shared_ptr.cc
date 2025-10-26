@@ -1,9 +1,11 @@
 #include <iostream>
 #include <thread>
+#include <list>
 #include <mutex>
 
 using namespace std;
 
+mutex mtx;
 
 namespace dsj
 {
@@ -52,6 +54,16 @@ namespace dsj
             release();
         }
 
+        size_t size()
+        {
+            return *_ref_cnt;
+        }
+
+        T* operator->()
+        {
+            return _ptr;
+        }
+
         void release()
         {
             _mtx->lock();
@@ -73,8 +85,31 @@ namespace dsj
     };
 }
 
+void func(dsj::my_shared_ptr<std::list<int>> sptr, int n)
+{
+    for (int i = 0; i < n; ++i)
+    {
+        dsj::my_shared_ptr<std::list<int>> sptr1(sptr);
+        dsj::my_shared_ptr<std::list<int>> sptr2(sptr);
+        dsj::my_shared_ptr<std::list<int>> sptr3(sptr);
+
+        mtx.lock();
+        sptr->push_back(i);
+        mtx.unlock();
+    }
+    std::cout << sptr.size() << std::endl;
+}
+
 int main()
 {
-    dsj::my_shared_ptr<int> ptr(new int);
+    dsj::my_shared_ptr<std::list<int>> sptr(new std::list<int>);
+    std::thread t1(func, sptr, 10000);
+    std::thread t2(func, sptr, 20000);
+
+    t1.join();
+    t2.join();
+    std::cout << "链表size：" << sptr->size() << std::endl;
+    std::cout << sptr.size() << std::endl;
+
     return 0;
 }
