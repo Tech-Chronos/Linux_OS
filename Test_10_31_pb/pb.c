@@ -46,7 +46,7 @@ void processbar(double filesize, double cur)
         
     }
 
-        printf("[%-100s][%-.3lf][%c]\r", buf, rate, str[cnt % len]);
+        printf("[%-100s][%-.3lf%%][%c]\r", buf, rate, str[cnt % len]);
         fflush(stdout); 
         usleep(20000);
 
