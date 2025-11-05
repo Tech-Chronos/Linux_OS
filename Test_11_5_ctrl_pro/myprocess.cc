@@ -7,7 +7,7 @@
 using namespace std;
 
 
-// 关于waitpid的的二个参数
+// 关于waitpid的的二个参数和第三个参数
 int main()
 {
     cout << "I am the father process, pid = " << getpid() << ", ppid = " << getppid() << endl;
@@ -23,6 +23,7 @@ int main()
             cout << "I am the child process, pid = " << getpid() << ", ppid = " << getppid() << endl;
             sleep(1);
         }
+        cout << "child process quit!" << endl;
     }
     else
     {
