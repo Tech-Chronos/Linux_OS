@@ -173,14 +173,17 @@ int CheckBuiltin()
                 {
                     char* stay = *(env + i);
                     char* head = *(env + i);
-                    if (*head != '=')
+                    while (*head != '=')
                     {
                         ++head;
                     }
 
+                    // 找到 = 前面的字符
                     char prestr[SIZE] = { 0 };
-                    snprintf(prestr, head - stay + 1, "%s", stay);
+                    strncpy(prestr, stay, head - stay);
+                    prestr[head - stay] = '\0';
 
+                    //printf("%s\n",prestr);
                     if (strcmp(prestr, buffer) == 0)
                     {
                         cout << env[i] << endl;
