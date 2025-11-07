@@ -19,7 +19,28 @@ char *argv[SIZE] = {nullptr};
 // 定义全局的数组存放命令
 char command[SIZE] = {0};
 
+// 定义全局的env数组
+char* env[SIZE * 4];
+
+// 定义退出码
 int lastcode;
+
+void LoadEnv()
+{
+    // bash是从配置文件导入的，这里因为是模仿，所以从父进程bash导入
+    extern char** environ;
+    int i = 0;
+    for (i = 0; environ[i]; ++i)
+    {
+        env[i] = environ[i];
+    }
+    
+    env[i] = nullptr;
+    // for (int j = 0; env[j]; ++j)
+    // {
+    //     cout << env[j] << endl;
+    // }
+}
 
 char *SplitPath(char *cwd)
 {
@@ -73,6 +94,7 @@ void GetCommandLineRemind()
 
 void GetUserCommand()
 {
+    // 从标准输入读一行数据
     fgets(command, SIZE, stdin);
 
     size_t len = strlen(command);
@@ -130,10 +152,51 @@ int CheckBuiltin()
     else if (strcmp(argv[0], "echo") == 0)
     {
         yes = 1;
-        if (strcmp(argv[1], "$?") == 0)
+        if (*(*(argv + 1) + 0) == '$')
         {
-            cout << lastcode << endl;
-            lastcode = 0;
+            if (*(*(argv + 1) + 1) == '?')
+            {
+                cout << lastcode << endl;
+                lastcode = 0;
+            }
+            else
+            {
+                // 1. 先分割出命令行参数中要获取的环境变量
+                char buffer[SIZE] = { 0 };
+                snprintf(buffer, SIZE, "%s", (*(argv + 1) + 1));
+
+                //cout << buffer << endl;
+
+                // 2. 在环境变量表中 找到这个环境变量
+                int i = 0;
+                for (; env[i]; ++i)
+                {
+                    char* stay = *(env + i);
+                    char* head = *(env + i);
+                    if (*head != '=')
+                    {
+                        ++head;
+                    }
+
+                    char prestr[SIZE] = { 0 };
+                    snprintf(prestr, head - stay + 1, "%s", stay);
+
+                    if (strcmp(prestr, buffer) == 0)
+                    {
+                        cout << env[i] << endl;
+                        break;
+                    }
+                }
+                if (env[i] == nullptr)
+                {
+                    cout << "this env is illegal" << endl;
+                }
+
+            }
+        }
+        else
+        {
+            cout << "please input [echo $env]" << endl;
         }
     }
     return yes;
@@ -172,6 +235,8 @@ int main()
     int quit = 0;
     while (!quit)
     {
+        LoadEnv();
+
         // 1. 打印命令行提示字符串
         GetCommandLineRemind();
 
