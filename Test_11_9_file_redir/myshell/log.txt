@@ -1,0 +1,12 @@
+total 44
+-rw-rw-r-- 1 dsj dsj     0 Nov 10 14:59 log.txt
+-rw-rw-r-- 1 dsj dsj    69 Nov 10 11:50 makefile
+-rwxrwxr-x 1 dsj dsj 22504 Nov 10 14:58 myshell
+-rw-rw-r-- 1 dsj dsj  8421 Nov 10 14:58 myshell.cc
+drwxrwxr-x 2 dsj dsj  4096 Nov 10 11:50 standard
+total 48
+-rw-rw-r-- 1 dsj dsj   254 Nov 10 14:59 log.txt
+-rw-rw-r-- 1 dsj dsj    69 Nov 10 11:50 makefile
+-rwxrwxr-x 1 dsj dsj 22504 Nov 10 14:58 myshell
+-rw-rw-r-- 1 dsj dsj  8421 Nov 10 14:58 myshell.cc
+drwxrwxr-x 2 dsj dsj  4096 Nov 10 11:50 standard
