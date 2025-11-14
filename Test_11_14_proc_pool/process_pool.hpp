@@ -1,13 +1,11 @@
 #ifndef PROCESS_POOL
 
 #define PROCESS_POOL
-#ifdef PROCESS_POOL
-
 #include <iostream>
 #include <vector>
 #include <functional>
 
-#include <cstdlib>
+#include <stdlib.h>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -50,7 +48,7 @@ public:
     void WaitChild()
     {
         int rid = waitpid(_childprocid, nullptr, 0);
-        if (rid == 0)
+        if (rid > 0)
         {
             std::cout << "child quit success !" << std::endl;
         }
@@ -136,20 +134,26 @@ void ExcuteTask(int taskid)
 }
 
 // 获取任务ID
-void GetFuncIdAndExcute(int *taskid, int rfd)
+void GetFuncIdAndExcute(int rfd)
 {
+    int taskid;
     while (true)
     {
-        int ret = read(rfd, taskid, sizeof(taskid));
-        if (ret < 0)
+        int ret = read(rfd, &taskid, sizeof(taskid));
+        if (ret == 0)
         {
-            std::cerr << "read error !" << std::endl;
+            // 父进程关闭写端，管道结束
+            std::cout << "child " << getpid() << " exit" << std::endl;
+            break;
         }
-        ExcuteTask(*taskid);
+        else if (ret < 0)
+        {
+            std::cerr << "read error!" << std::endl;
+            break;
+        }
+        ExcuteTask(taskid);
     }
 }
-
-
 
 void CompleteAndQuit(std::vector<Channel> &channels)
 {
@@ -163,5 +167,4 @@ void CompleteAndQuit(std::vector<Channel> &channels)
     }
 }
 
-#endif
 #endif
