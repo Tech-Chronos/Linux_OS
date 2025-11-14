@@ -24,7 +24,6 @@ void CreateChannel(std::vector<Channel> &channels, int pipenum)
             //ExcuteTask(taskid);
             GetFuncIdAndExcute(pipefd[0]);
             
-
             // 子进程执行完直接退出
             exit(0);
         }
@@ -66,7 +65,7 @@ int main(int argc, char *argv[])
 
     // 6. 向信道中分配任务
     // 先分配五次任务
-    AllocTask(channels, 5);
+    AllocTask(channels);
 
     CompleteAndQuit(channels);
 

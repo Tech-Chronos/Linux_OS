@@ -91,20 +91,20 @@ void LoadTask()
 // 分配一次的函数
 void AllocTaskOnce(std::vector<Channel> &channels)
 {
+    static int index = 0;
     sleep(1);
     int taskid = random() % TASK_SIZE;
 
-    for (int i = 0; i < channels.size(); ++i)
+    // 按顺序挑选进程
+    int writefd = channels[index].GetWfd();
+    // 面向字节流
+    int ret = write(writefd, &taskid, sizeof(taskid));
+    if (ret < 0)
     {
-        // std::cout << i << " -> "<< taskid << std::endl;
-        int writefd = channels[i].GetWfd();
-        // 面向字节流
-        int ret = write(writefd, &taskid, sizeof(taskid));
-        if (ret < 0)
-        {
-            std::cerr << "write error!" << std::endl;
-        }
+        std::cerr << "write error!" << std::endl;
     }
+
+    index = (index + 1) % channels.size();
 }
 
 // 父进程分配任务，可以传递次数
