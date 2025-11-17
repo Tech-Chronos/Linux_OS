@@ -2,16 +2,7 @@
 
 int main()
 {
-    shm process1(creator);
+    shm client(gpath, guser, 0x666);
 
-    int ret = process1.CreateShm();
-    if (ret  != -1)
-    {
-        std::cout << "return val -> " << ret << std::endl;
-    }
-    else
-    {
-        perror("shm error");
-    }
     return 0;   
 }

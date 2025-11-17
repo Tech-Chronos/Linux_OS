@@ -2,7 +2,7 @@
 
 int main()
 {
-    shm process2(user);
+    shm server(gpath, gcreator, 0x666);
 
     
     return 0;   

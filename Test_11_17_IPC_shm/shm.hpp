@@ -12,37 +12,110 @@
 #define SIZE 4096
 
 // 定义角色
-const int creator = 1;
-const int user = 2;
+const int gcreator = 1;
+const int guser = 2;
 
 // 路径
 std::string gpath = "./";
 
-key_t gkey = ftok(gpath.c_str(), 678);
-
 // 首先就得获取共享内存 shmget
 class shm
 {
-public:
-    shm(int identification, key_t key = gkey)
-        : _idetification(identification), _key(key)
+private:
+    void CreateKey()
     {
+        _key = ftok(_path.c_str(), _proj_id);
     }
 
-    int CreateShm()
+    int GetShmid(int size, int flag)
     {
-        int ret = 0;
-        std::cout << _key << std::endl;
-        ret = shmget(_key, SIZE, IPC_CREAT | IPC_EXCL);
-        _shmid = ret;
-        return ret;
+        int shmid = shmget(_key, size, flag);
+        return shmid;
+    }
+
+    static std::string ToHex(int key)
+    {
+        char buffer[1024];
+
+        snprintf(buffer, sizeof(buffer), "0x%x", key);
+
+        // std::cout << buffer << std::endl;
+
+        return buffer;
+    }
+
+public:
+    shm(const std::string &path, int identification, int proj_id)
+        : _path(path), _idetification(identification), _proj_id(proj_id)
+    {
+        CreateKey();
+        std::cout << "key -> " << ToHex(_key) << std::endl;
+
+        if (_idetification == gcreator)
+        {
+            GetShmidForCreate();
+        }
+        else if (_idetification == guser)
+        {
+            GetShmidForUse();
+        }
+    }
+
+    bool GetShmidForCreate()
+    {
+        if (_idetification == gcreator)
+        {
+            _shmid = GetShmid(SIZE, IPC_CREAT | IPC_EXCL);
+            if (_shmid >= 0)
+            {
+                std::cout << "shmid -> " << _shmid << std::endl;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool GetShmidForUse()
+    {
+        if (_idetification == guser)
+        {
+            _shmid = GetShmid(SIZE, IPC_CREAT);
+            if (_shmid >= 0)
+            {
+                std::cout << "shmid -> " << _shmid << std::endl;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    ~shm()
+    {
+        if (_idetification == gcreator)
+        {
+            sleep(5);
+            int ret = shmctl(_shmid, IPC_RMID, nullptr);
+            if (ret == 0)
+            {
+                std::cout << "creator quit, shm has deleted !" << std::endl;
+            }
+            else
+            {
+                std::cout << "shmctl error !" << std::endl;
+            }
+        }
+        else
+            std::cout << "user quit, but shm has not deleted !" << std::endl;
     }
 
 private:
+    const std::string _path;
     int _idetification;
+    int _proj_id;
     key_t _key;
 
-    int _shmid = -1;
+    int _shmid;
 };
 
 #endif
