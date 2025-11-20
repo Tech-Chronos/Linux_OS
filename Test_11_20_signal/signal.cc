@@ -21,16 +21,29 @@ void PrintPending(sigset_t pending_set)
     std::cout << std::endl;
 }
 
+// 之后获取到信号立即处理
 void handler(int signo)
 {
-    std::cout << signo << std::endl;
+    std::cout << "get signo = " << signo << std::endl;
+
+    sigset_t pendingset;
+    sigemptyset(&pendingset);
+    sigpending(&pendingset);
+
+    std::cout << "--------------------------------------" << std::endl;
+
+    // 是递达之前pending表就置0了
+    PrintPending(pendingset);
+
+    std::cout << "--------------------------------------" << std::endl;
+
 }
 
 // 信号的保存
 int main()
 {
     // 0. 2号信号自定义为handler
-    //signal(2, handler);
+    signal(2, handler);
     // 1. 定义两个位图
     sigset_t block_set, old_set;
 
@@ -47,6 +60,7 @@ int main()
     sigset_t pending_set;
     sigemptyset(&pending_set);
 
+    // pending表中会保存当前收到的信号，如果被阻塞的就不会处理
     int cnt = 5;
     while (true)
     {
@@ -55,9 +69,11 @@ int main()
         PrintPending(pending_set);
         sleep(1);
 
+        // 5s之后唤醒2号信号
         --cnt;
-        if (!cnt)
+        if (cnt == 0)
         {
+            std::cout << "唤醒 2 号信号 ！" << std::endl;
             sigprocmask(SIG_UNBLOCK, &block_set, nullptr);
         }
     }
