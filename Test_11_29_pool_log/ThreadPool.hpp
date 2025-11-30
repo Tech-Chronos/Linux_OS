@@ -1,4 +1,5 @@
 #include "Thread.hpp"
+#include "LockGuard.hpp"
 
 template <class F>
 class ThreadPool
@@ -62,13 +63,15 @@ private:
         }
     }
 
-public:
-    ThreadPool(int thread_num)
+    ThreadPool(int thread_num = 5)
         : _thread_num(thread_num), _sleep_threads_num(0), _is_running(false)
     {
         pthread_mutex_init(&_mutex, nullptr);
-        pthread_cond_init(&_cond,nullptr);
+        pthread_cond_init(&_cond, nullptr);
     }
+
+    ThreadPool(const ThreadPool &) = delete;
+    ThreadPool &operator=(const ThreadPool &) = delete;
 
     void Init()
     {
@@ -89,6 +92,26 @@ public:
         {
             thread.Start();
         }
+    }
+
+public:
+    static ThreadPool *GetSingleInstance(int thread_num = 5)
+    {
+        // 如果已经创建了，可能多线程都卡在这里，用双层循环判断
+        if (_tp_ptr == nullptr)
+        {
+            // 如果多线程同时调用这个单例，会出现问题
+            LockGuard lock(&_single_mutex);
+            if (_tp_ptr == nullptr)
+            {
+                // 可能很多线程都在这里都被切走了，都没有建立对象，因此要加锁保护
+                _tp_ptr = new ThreadPool<F>(thread_num);
+                _tp_ptr->Init();
+
+                _tp_ptr->Start();
+            }
+        }
+        return _tp_ptr;
     }
 
     void Enqueue(const F func)
@@ -115,6 +138,13 @@ public:
         WakeUpAll();
 
         Unlock();
+
+        // 别忘了join！不然主线程析构了，锁和环境变量都destroy了
+        // 但是还有线程在执行任务，就core dumped了
+        for (auto &thread : _threads)
+        {
+            thread.Join();
+        }
     }
 
     ~ThreadPool()
@@ -133,4 +163,13 @@ private:
 
     pthread_mutex_t _mutex; // 对队列资源的保护
     pthread_cond_t _cond;   // 条件变量看是否有任务
+
+    static ThreadPool<F> *_tp_ptr;
+    static pthread_mutex_t _single_mutex;
 };
+
+template <class F>
+ThreadPool<F> *ThreadPool<F>::_tp_ptr = nullptr;
+
+template <class F>
+pthread_mutex_t ThreadPool<F>::_single_mutex = PTHREAD_MUTEX_INITIALIZER;

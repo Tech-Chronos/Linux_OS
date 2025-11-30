@@ -1,4 +1,5 @@
 #pragma once
+#include "Log.hpp"
 
 #include <iostream>
 #include <string>
@@ -10,6 +11,7 @@
 #include <pthread.h>
 
 using task_t = std::function<void(std::string& name)>;
+Log lg;
 
 namespace Task
 {
@@ -18,7 +20,8 @@ namespace Task
     public:
         void Task(std::string& name)
         {
-            std::cout << name << " this is a base task!" << std::endl;
+            //std::cout << name << " this is a base task!" << std::endl;
+            LOG(DEBUG, "%s this is a base task!\n", name.c_str());
         }
     };
 
@@ -27,7 +30,8 @@ namespace Task
     public:
         void Task(std::string& name) 
         {
-            std::cout << name << " this is a Download task!" << std::endl;
+            //std::cout << name << " this is a Download task!" << std::endl;
+            LOG(DEBUG, "%s this is a Download task!\n", name.c_str());
         }
     };
 
@@ -36,7 +40,9 @@ namespace Task
     public:
         void Task(std::string& name) 
         {
-            std::cout << name << " this is a SQLTask task!" << std::endl;
+            //std::cout << name << " this is a SQLTask task!" << std::endl;
+            LOG(DEBUG, "%s this is a SQLTask task!\n", name.c_str());
+
         }
     };
 
@@ -45,7 +51,9 @@ namespace Task
     public:
         void Task(std::string& name)
         {
-            std::cout << name << " this is a ModifyTask task!" << std::endl;
+            //std::cout << name << " this is a ModifyTask task!" << std::endl;
+            LOG(DEBUG, "%s this is a ModifyTask task!\n", name.c_str());
+
         }
     };
 
