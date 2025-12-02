@@ -1,4 +1,5 @@
 #include "Log.hpp"
+#include "InetAddr.hpp"
 
 #include <iostream>
 #include <string>
@@ -14,13 +15,13 @@
 Log lg;
 
 uint16_t gport = 8888;
-std::string gip = "127.0.0.1";
+//std::string gip = "127.0.0.1";
 
 class UdpServer
 {
 public:
-    UdpServer(uint16_t port = gport, std::string ip = gip)
-        : _port(port), _ip(ip)
+    UdpServer(uint16_t port = gport)
+        : _port(port), _isrunning(false)
     {
     }
 
@@ -55,7 +56,10 @@ public:
         // 2.4 设置 IP 地址
         // 将ip从点分十进制的字符串形式转换成一个四字节的整数
         // 将这个整数转换成网络所需要的大端的字节序
-        addr.sin_addr.s_addr = inet_addr(_ip.c_str());
+        //addr.sin_addr.s_addr = inet_addr(_ip.c_str());
+
+        // 这个表示可以接受任意的
+        addr.sin_addr.s_addr = 0;
 
         // 3. 绑定到socket
         int ret = bind(_socketfd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
@@ -72,6 +76,7 @@ public:
 
     void Start()
     {
+        _isrunning = true;
         while (true)
         {
             char buffer[1024];
@@ -79,22 +84,45 @@ public:
             struct sockaddr_in peer_addr;
             socklen_t peer_len;
             int n = recvfrom(_socketfd, buffer, sizeof(buffer) - 1, 0, reinterpret_cast<sockaddr *>(&peer_addr), &peer_len);
+            if (n > 0)
+            {
+                buffer[n] = '\0';
+                std::string recv_message = buffer;
+                // 打印收到的客户端的数据
+                LOG(DEBUG, "recv: %s from %s:%d",
+                    recv_message.c_str(),
+                    inet_ntoa(peer_addr.sin_addr),
+                    ntohs(peer_addr.sin_port));
 
-            buffer[n] = '\0';
-
-            LOG(DEBUG, "recv: %s from %s:%d\n",
-                   buffer,
-                   inet_ntoa(peer_addr.sin_addr),
-                   ntohs(peer_addr.sin_port));
+                std::string echo_message = "sever echo# " + recv_message;
+                int ret = sendto(_socketfd, echo_message.c_str(), echo_message.size(), 0, (sockaddr *)&peer_addr, peer_len);
+                if (ret < 0)
+                {
+                    LOG(FATAL, "sendto error!");
+                    exit(-1);
+                }
+                else
+                {
+                    LOG(DEBUG, "send to client successfully!");
+                }
+            }
+            else
+            {
+                LOG(FATAL, "receive error!");
+                exit(-1);
+            }
         }
     }
 
     ~UdpServer()
     {
+        if (_isrunning)
+            close(_socketfd);
     }
 
 private:
     int _socketfd;
     uint16_t _port;
-    std::string _ip;
+    //std::string _ip;
+    bool _isrunning;
 };
