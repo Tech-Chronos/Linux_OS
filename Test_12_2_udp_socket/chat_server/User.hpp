@@ -17,7 +17,7 @@ public:
         :_addr(addr)
     {}
 
-    InAddr GetInetAddr()
+    InAddr GetInetAddr() const
     {
         return _addr;
     }
@@ -31,19 +31,19 @@ public:
     Group()
     {}
 
-    void Check(User newuser)
+    void Check(const User& newuser)
     {
         for (auto& user : _users)
         {
             if (newuser.GetInetAddr() == user.GetInetAddr())
             {
-                break;
+                return;
             }
         }
         _users.push_back(newuser);
     }
 
-    void OffLine(User olduser)
+    void OffLine(const User& olduser)
     {
         std::vector<User>::iterator it = _users.begin();
         while (it != _users.end())
@@ -52,7 +52,8 @@ public:
                 break;
             ++it;
         }
-        _users.erase(it);
+        if (it != _users.end())
+            _users.erase(it);
     }
 
     void Forward(InAddr addr, int sockfd, std::string message)
@@ -72,11 +73,11 @@ public:
 
     void SendMessageToAll(InAddr addr, int sockfd, std::string message)
     {
-        Check(addr);
+        Check(User(addr));
 
-        if (message.c_str() == "q")
+        if (message == "q")
         {
-            OffLine(addr);
+            OffLine(User(addr));
         }
 
         Forward(addr, sockfd, message);
