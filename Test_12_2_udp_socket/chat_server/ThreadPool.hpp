@@ -1,5 +1,8 @@
+#pragma once
 #include "Thread.hpp"
 #include "LockGuard.hpp"
+
+using task_t = std::function<void(std::string&)>;
 
 template <class F>
 class ThreadPool
@@ -56,10 +59,10 @@ private:
             }
 
             // 有任务
-            F task = _tasks_queue.front();
+            F task_thread = _tasks_queue.front();
             _tasks_queue.pop();
             Unlock();
-            task(name);
+            task_thread(name);
         }
     }
 

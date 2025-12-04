@@ -15,8 +15,6 @@
 #include <arpa/inet.h>
 
 
-//using func_t = std::function<std::string(std::string)>;
-
 class UdpServer
 {
 public:
@@ -83,16 +81,6 @@ public:
                 LOG(DEBUG, "receive from %s:%d say: %s", addr.GetIP().c_str(), addr.GetPort(), message.c_str());
 
                 _func(addr, _sockfd, message);
-                // std::string result = _func(buffer);
-
-                // std::cout << "result: " << result << std::endl;
-                // std::string echo_server = result;
-                // int ret = sendto(_sockfd, echo_server.c_str(), echo_server.size(), 0, (sockaddr*)&peer_addr, peer_len);
-                // if (ret < 0)
-                // {
-                //     LOG(FATAL, "send to error!");
-                //     exit(-1);
-                // }
             }
         }
     }

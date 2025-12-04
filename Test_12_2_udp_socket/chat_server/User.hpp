@@ -1,6 +1,7 @@
 #pragma once
 #include "Log.hpp"
 #include "InAddr.hpp"
+#include "ThreadPool.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -10,11 +11,13 @@
 
 using func_t = std::function<void(InAddr, int, std::string)>;
 
+
 class User
 {
 public:
     User(const InAddr& addr)
         :_addr(addr)
+        //,_name("user")
     {}
 
     InAddr GetInetAddr() const
@@ -23,6 +26,7 @@ public:
     }
 private:
     InAddr _addr;
+    //std::string _name;
 };
 
 class Group
@@ -56,7 +60,7 @@ public:
             _users.erase(it);
     }
 
-    void Forward(InAddr addr, int sockfd, std::string message)
+    void Forward(InAddr addr, int sockfd, std::string message, std::string& thread_name)
     {
         std::string ip = addr.GetIP();
         std::string port = std::to_string(addr.GetPort());
@@ -80,7 +84,9 @@ public:
             OffLine(User(addr));
         }
 
-        Forward(addr, sockfd, message);
+        task_t task_thread = std::bind(&Group::Forward, this, addr, sockfd, message, std::placeholders::_1);
+
+        ThreadPool<task_t>::GetSingleInstance()->Enqueue(task_thread);
         
     }
 

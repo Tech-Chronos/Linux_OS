@@ -1,5 +1,6 @@
-#include "Task.hpp"
-
+#pragma once
+#include <iostream>
+#include <queue>
 
 template<class F>
 class Thread
