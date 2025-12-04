@@ -108,7 +108,7 @@ public:
             else
             {
                 buffer[n] = 0;
-                LOG(DEBUG, "[%s:%d]# %s", peer.GetHostIp().c_str(), peer.GetHostIp(), buffer);
+                LOG(DEBUG, "[%s:%d]# %s", peer.GetHostIp().c_str(), peer.GetHostPort(), buffer);
 
                 std::string echo_string = "[server echo]# ";
                 echo_string += buffer;
