@@ -1,6 +1,7 @@
 #pragma once
 #include "Log.hpp"
 #include "InetAddr.hpp"
+#include "ThreadPool.hpp"
 
 #include <iostream>
 #include <string>
@@ -36,8 +37,9 @@ struct ThreadData
 class TcpEchoServer
 {
 private:
-    void ServiceHelper(int service_fd, InAddr &addr)
+    void ServiceHelper(int service_fd, InAddr addr, std::string thread_name)
     {
+        LOG(INFO, "%s", addr.Addr_Str().c_str());
         // 2. receive peer message
         while (true)
         {
@@ -76,21 +78,23 @@ private:
                 }
             }
         }
+        close(service_fd);
     }
     
-    static void* ThreadFunc(void* args)
-    {
-        ThreadData* td = static_cast<ThreadData*>(args);
+    // 线程版本
+    // static void* ThreadFunc(void* args)
+    // {
+    //     ThreadData* td = static_cast<ThreadData*>(args);
 
-        pthread_detach(pthread_self());
-        TcpEchoServer* server = td->_self;
-        int servicefd = td->_service_fd;
-        InAddr addr = td->_addr;
+    //     pthread_detach(pthread_self());
+    //     TcpEchoServer* server = td->_self;
+    //     int servicefd = td->_service_fd;
+    //     InAddr addr = td->_addr;
         
-        server->ServiceHelper(servicefd, addr);
+    //     server->ServiceHelper(servicefd, addr);
 
-        return nullptr;
-    }
+    //     return nullptr;
+    // }
 
 public:
     TcpEchoServer(uint16_t port)
@@ -152,7 +156,7 @@ public:
             if (service_fd < 0)
             {
                 LOG(FATAL, "accept error!");
-                exit(-1);
+                continue;
             }
             else
             {
@@ -161,11 +165,14 @@ public:
                 
                 //ServiceHelper(service_fd, addr);
 
-                pthread_t tid;
-                //auto func_thread = std::bind(&TcpEchoServer::ServiceHelper, this, service_fd, addr);
+                task_t thread_func = std::bind(&TcpEchoServer::ServiceHelper, this, service_fd, addr, std::placeholders::_1);
+                ThreadPool<task_t>::GetSingleInstance()->Enqueue(thread_func);
+
+                // pthread_t tid;
+                // //auto func_thread = std::bind(&TcpEchoServer::ServiceHelper, this, service_fd, addr);
                 
-                ThreadData* td = new ThreadData(this, service_fd, addr);
-                pthread_create(&tid, nullptr, ThreadFunc, td);
+                // ThreadData* td = new ThreadData(this, service_fd, addr);
+                // pthread_create(&tid, nullptr, ThreadFunc, td);
                 
                 // int pid = fork();
                 // if (pid == 0)
