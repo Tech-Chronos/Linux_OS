@@ -1,5 +1,6 @@
 #include "TcpEchoServer.hpp"
-#include "Command.hpp"
+#include "IOService.hpp"
+#include "NetCal.hpp"
 
 // ./TcpEchoSever port
 int main(int argc, char* argv[])
@@ -12,14 +13,14 @@ int main(int argc, char* argv[])
 
     uint16_t port = std::stoi(argv[1]);
 
-    DealCommand command;
+    Calculator cal;
+    business_task process_func = std::bind(&Calculator::Calculate, &cal, std::placeholders::_1);
 
-    task_t task = std::bind(&DealCommand::GetCommand, &command, std::placeholders::_1, std::placeholders::_2);
+    IOService ios(process_func);
+    task_t io_task = std::bind(&IOService::IOExcute, &ios, std::placeholders::_1);
 
-    std::unique_ptr<TcpEchoServer> server_ptr = std::make_unique<TcpEchoServer>(port, task);
+    TcpEchoServer server(port, io_task);
+    server.Start();
 
-    server_ptr->Init();
-
-    server_ptr->Start();
     return 0;
 }

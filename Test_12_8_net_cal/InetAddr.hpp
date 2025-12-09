@@ -20,7 +20,6 @@ private:
         _ip = buffer;
     }
 public:
-
     InAddr()
     {}
     

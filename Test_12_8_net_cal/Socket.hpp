@@ -29,20 +29,23 @@ public:
     virtual void ServerBind(uint16_t port) = 0;
     virtual void ServerListen() = 0;
     virtual SockPtr ServerAccept(InAddr *addr) = 0;
-    virtual void ClientConnect(uint16_t port, std::string ip) = 0;
+    virtual void ClientConnect(uint16_t port, std::string &ip) = 0;
+
+    virtual std::string RecvMessage(char *inbuffer) = 0;
+    virtual void SendMessage(const std::string &message) = 0;
 
     virtual int GetSockfd() = 0;
+    virtual void Closefd() = 0;
 
 public:
-    void StartServer(InAddr *addr, uint16_t port)
+    void StartTcpServer(uint16_t port)
     {
         CreateSocket();
         ServerBind(port);
         ServerListen();
-        ServerAccept(addr);
     }
 
-    void StartClient(uint16_t port, std::string ip)
+    void StartTcpClient(uint16_t port, std::string ip)
     {
         CreateSocket();
         ClientConnect(port, ip);
@@ -123,7 +126,7 @@ public:
         return std::make_shared<TcpSocket>(service_fd);
     }
 
-    void ClientConnect(uint16_t port, std::string& ip)
+    void ClientConnect(uint16_t port, std::string &ip)
     {
         sockaddr_in server;
         bzero(&server, sizeof server);
@@ -147,9 +150,27 @@ public:
         return _sockfd;
     }
 
+    std::string RecvMessage(char *inbuffer) override
+    {
+        recv(_sockfd, inbuffer, 1024, 0);
+
+        return inbuffer;
+    }
+
+    void SendMessage(const std::string &message) override
+    {
+        send(_sockfd, message.c_str(), message.size(), 0);
+    }
+
+    void Closefd()
+    {
+        if (_sockfd > 0)
+        {
+            close(_sockfd);
+        }
+    }
     ~TcpSocket()
     {
-        
     }
 
 private:

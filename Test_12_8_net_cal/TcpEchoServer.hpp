@@ -19,20 +19,19 @@
 
 //int g_backlog = 8;
 
-using task_t = std::function<void(int, InAddr)>;
+using task_t = std::function<void(SockPtr)>;
 
 class TcpEchoServer;
 
 struct ThreadData
 {
-    ThreadData(TcpEchoServer *self, int service_fd, InAddr addr)
-        : _self(self), _service_fd(service_fd), _addr(addr)
+    ThreadData(TcpEchoServer *self, SockPtr sock)
+        : _self(self), _sock(sock)
     {
     }
 
     TcpEchoServer *_self;
-    int _service_fd;
-    InAddr _addr;
+    SockPtr _sock;
 };
 
 class TcpEchoServer
@@ -45,30 +44,19 @@ private:
 
         pthread_detach(pthread_self());
         TcpEchoServer *server = td->_self;
-        int servicefd = td->_service_fd;
-        InAddr addr = td->_addr;
 
-        server->_command_task(servicefd, addr);
-        close(td->_service_fd);
+        server->_io_task(server->_sock);
+
+        server->_sock->Closefd();
         return nullptr;
     }
 
 public:
-    TcpEchoServer(uint16_t port, task_t command_task)
-        : _port(port), _isrunning(false), _command_task(command_task)
+    TcpEchoServer(uint16_t port, task_t io_task)
+        : _port(port), _isrunning(false), _io_task(io_task)
     {
         _sock = std::make_shared<TcpSocket>();
-    }
-
-    void Init()
-    {
-        // 1. 创建监听套接字
-        _sock->CreateSocket();
-        // 2. 绑定 服务器的 IP 和 PORT
-        _sock->ServerBind(_port);
-
-        // 3. 监听
-        _sock->ServerListen();
+        _sock->StartTcpServer(_port);
     }
 
     void Start()
@@ -80,11 +68,9 @@ public:
             InAddr client;
             SockPtr service = _sock->ServerAccept(&client);
 
-            int service_fd = service->GetSockfd();
-
             // 创建线程去执行任务
             pthread_t tid;
-            ThreadData *td = new ThreadData(this, service_fd, client);
+            ThreadData *td = new ThreadData(this, service);
             pthread_create(&tid, nullptr, ThreadFunc, td);
         }
     }
@@ -98,5 +84,5 @@ private:
     uint16_t _port;
     bool _isrunning;
 
-    task_t _command_task;
+    task_t _io_task;
 };
