@@ -1,5 +1,7 @@
 #include "Log.hpp"
 #include "InetAddr.hpp"
+#include "IOService.hpp"
+#include "Socket.hpp"
 
 #include <iostream>
 #include <string>
@@ -27,68 +29,56 @@ int main(int argc, char *argv[])
     uint16_t port = std::stoi(argv[2]);
 
     // 2. 打开socket文件描述符
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
-        LOG(FATAL, "socket error!");
-        exit(-1);
-    }
-    LOG(INFO, "socket successfully, sockfd = %d", sockfd);
+    std::shared_ptr<TcpSocket> client = std::make_shared<TcpSocket>();
 
-    // 3. 尝试连接服务器
-    sockaddr_in server;
-    bzero(&server, sizeof server);
-    server.sin_family = AF_INET;
-    server.sin_port = htons(port);
-    inet_pton(AF_INET, ip.c_str(), &server.sin_addr);
+    srand(time(nullptr) ^ getpid());
+    std::string oper_str = "+-*/%&";
 
-    while (true)
+    std::string recvmessage;
+
+    if (client->StartTcpClient(port, ip))
     {
-        int ret = connect(sockfd, (sockaddr *)&server, sizeof server);
-        if (ret < 0)
+        while (true)
         {
-            LOG(FATAL, "connect error!");
-            break;
-        }
-        else
-        {
-            LOG(INFO, "connect successfully!");
-            while (true)
+            // 1. 构建请求
+            auto req = Factory::BuildRequest();
+            req->_x = rand() % 10;
+            req->_y = rand() % 10;
+            req->_oper = oper_str[req->_y % oper_str.size()];
+
+            // 2. 进行序列化
+            std::string req_str = req->Serialize();
+            req_str = Encode(req_str);
+
+            std::cout << "client req_str: " << req_str << std::endl;
+
+            // 3. 发送给服务器
+            client->SendMessage(req_str);
+
+            // 4. 接收应答
+            std::string in;
+            client->RecvMessage(&in);
+            recvmessage += in;
+
+            std::cout << "recvmessage ->" << recvmessage << std::endl;
+            // 5. decode
+            std::string full_message;
+            while (Decode(recvmessage, &full_message))
             {
-                std::string message;
-                std::cout << "Please input message# ";
-                std::getline(std::cin, message);
-                int n = write(sockfd, message.c_str(), message.size());
-
-                if (n < 0)
+                auto resp = Factory::BuildResponse();
+                if (resp->Deserialize(full_message))
                 {
-                    LOG(FATAL, "write error!");
-                    break;
+                    resp->Print();
                 }
-                else if (n > 0)
+                else
                 {
-                    LOG(INFO, "write successfully!");
-                    char buffer[1024];
-                    n = read(sockfd, buffer, sizeof(buffer));
-                    if (n < 0)
-                    {
-                        LOG(FATAL, "read error!");
-                        break;
-                    }
-                    else if (n == 0)
-                    {
-                        LOG(FATAL, "server close!");
-                        break;
-                    }
-                    else
-                    {
-                        buffer[n] = 0;
-                        LOG(INFO, "%s", buffer);
-                    }
+                    std::cerr << "Deserialize error!" << std::endl;
                 }
             }
+            sleep(100);
         }
     }
-    close(sockfd);
+
+    client->Closefd();
     return 0;
 }

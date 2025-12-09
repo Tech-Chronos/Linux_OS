@@ -29,13 +29,15 @@ public:
     virtual void ServerBind(uint16_t port) = 0;
     virtual void ServerListen() = 0;
     virtual SockPtr ServerAccept(InAddr *addr) = 0;
-    virtual void ClientConnect(uint16_t port, std::string &ip) = 0;
+    virtual bool ClientConnect(uint16_t port, std::string &ip) = 0;
 
-    virtual std::string RecvMessage(char *inbuffer) = 0;
+    virtual int RecvMessage(std::string* in) = 0;
     virtual void SendMessage(const std::string &message) = 0;
 
     virtual int GetSockfd() = 0;
     virtual void Closefd() = 0;
+
+    virtual ~BaseSocket() {}
 
 public:
     void StartTcpServer(uint16_t port)
@@ -45,10 +47,10 @@ public:
         ServerListen();
     }
 
-    void StartTcpClient(uint16_t port, std::string ip)
+    bool StartTcpClient(uint16_t port, std::string ip)
     {
         CreateSocket();
-        ClientConnect(port, ip);
+        return ClientConnect(port, ip);
     }
 };
 
@@ -108,6 +110,7 @@ public:
 
     SockPtr ServerAccept(InAddr *addr) override
     {
+        std::cout << "main thread begin to accept ..." << std::endl;
         sockaddr_in peer;
         memset(&peer, 0, sizeof(peer));
         socklen_t len = sizeof(peer);
@@ -116,17 +119,18 @@ public:
         if (service_fd < 0)
         {
             LOG(FATAL, "accept error!");
+            return nullptr;
         }
         else
         {
-            InAddr peer(peer);
-            *addr = peer;
+            InAddr client(peer);
+            *addr = client;
             LOG(INFO, "connect %s successfully! service fd = %d", addr->Addr_Str().c_str(), service_fd);
         }
         return std::make_shared<TcpSocket>(service_fd);
     }
 
-    void ClientConnect(uint16_t port, std::string &ip)
+    bool ClientConnect(uint16_t port, std::string &ip)
     {
         sockaddr_in server;
         bzero(&server, sizeof server);
@@ -138,10 +142,12 @@ public:
         if (ret < 0)
         {
             LOG(FATAL, "connect error!");
+            return false;
         }
         else
         {
             LOG(INFO, "connect successfully!");
+            return true;
         }
     }
 
@@ -150,11 +156,23 @@ public:
         return _sockfd;
     }
 
-    std::string RecvMessage(char *inbuffer) override
+    int RecvMessage(std::string* in) override
     {
-        recv(_sockfd, inbuffer, 1024, 0);
-
-        return inbuffer;
+        char inbuffer[4096];
+        int n = recv(_sockfd, inbuffer, sizeof(inbuffer) - 1, 0);
+        
+        if (n > 0)
+        {
+            inbuffer[n] = 0;
+            *in = inbuffer;
+        }
+        else
+        {
+            LOG(ERROR, "recv error or server quit!");
+            exit(-1);
+        }
+        std::cout << *in << std::endl;
+        return n;
     }
 
     void SendMessage(const std::string &message) override

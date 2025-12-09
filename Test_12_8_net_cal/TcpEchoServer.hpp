@@ -45,9 +45,12 @@ private:
         pthread_detach(pthread_self());
         TcpEchoServer *server = td->_self;
 
-        server->_io_task(server->_sock);
+        std::cout << "thread begin" << std::endl;
+        server->_io_task(td->_sock);
 
-        server->_sock->Closefd();
+        td->_sock->Closefd();
+
+        delete td;
         return nullptr;
     }
 
@@ -71,6 +74,7 @@ public:
             // 创建线程去执行任务
             pthread_t tid;
             ThreadData *td = new ThreadData(this, service);
+            std::cout << "thread is going to begin" << std::endl;
             pthread_create(&tid, nullptr, ThreadFunc, td);
         }
     }

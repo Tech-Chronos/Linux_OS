@@ -7,10 +7,10 @@
 
 #include <jsoncpp/json/json.h>
 
-const std::string sep = "\r\n";
+const std::string sep = "\n";
 
 // 读到的信息可能并不完整(面向字节流),可以规定完整信息
-// 规定："len\r\n{json}\r\n"是完整信息
+// 规定："len\n{json}\n"是完整信息
 // 给数据添加报头信息
 std::string Encode(std::string &json_string)
 {
@@ -23,38 +23,36 @@ std::string Encode(std::string &json_string)
     return result;
 }
 
-bool Decode(std::string &packagestream, std::string* full_message)
+bool Decode(std::string &packagestream, std::string *full_message)
 {
-    int pos = packagestream.find(sep.c_str(), 0);
+    auto pos = packagestream.find(sep);
     if (pos == std::string::npos)
     {
         LOG(FATAL, "find error!");
-        return false;
-    }
-    else if (pos == 0)
-    {
-        LOG(ERROR, "pos == 0");
+        *full_message = std::string();
         return false;
     }
     // 1. 读取长度
     std::string len_str = packagestream.substr(0, pos);
     int json_len = std::stoi(len_str);
 
-    // 2. 截取json串
-    int start_pos = pos + sep.size();
-    std::string json_str = packagestream.substr(start_pos, json_len);
+    // 2. 查看报文是否完整
+    // size_t total_len = len_str.size() + json_len + sep.size();
 
-    // 3. 判断是否是完整的
-    if (json_str.size() < json_len)
+    size_t header_len = pos + sep.size();
+    size_t total_len = header_len + json_len + sep.size();
+    if (packagestream.size() < total_len)
     {
-        LOG(FATAL, "it isn't a full message!");
+        *full_message = std::string();
         return false;
     }
 
-    // 4. 如果是了，将packagestream头部的信息删掉
-    size_t total_len = len_str.size() + json_len + (2 * sep.size());
-    packagestream.erase(0, total_len);
+    // 3. 截取json串
+    // int start_pos = pos + sep.size();
+    std::string json_str = packagestream.substr(header_len, json_len);
 
+    // 4. 将packagestream头部的信息删掉
+    packagestream.erase(0, total_len);
     *full_message = json_str;
     return true;
 }
@@ -79,29 +77,34 @@ public:
         return result;
     }
 
-    void Deserialize(const std::string &netmessage)
+    bool Deserialize(const std::string &netmessage)
     {
+        std::cout << "addr=" << (void *)netmessage.data()
+                  << ", size=" << netmessage.size() << std::endl;
+
+        for (unsigned char c : netmessage)
+            printf("%02X ", c);
+        printf("\n");
+
+        std::cout << "inner Deserialize" << std::endl;
         Json::Value root;
         Json::Reader reader;
 
-        if (!reader.parse(netmessage, root))
+        std::string msg = netmessage;
+        while (msg.size() && isspace(msg.back()))
+            msg.pop_back();
+        bool res = reader.parse(msg, root);
+        if (!res)
         {
-            throw std::runtime_error("JSON parse error: " + reader.getFormattedErrorMessages());
-        }
-
-        if (!root.isMember("x") || !root.isMember("y") || !root.isMember("oper"))
-        {
-            throw std::runtime_error("Missing field(s) in JSON");
-        }
-
-        if (!root["x"].isInt() || !root["y"].isInt() || !root["oper"].isInt())
-        {
-            throw std::runtime_error("Invalid JSON field type(s)");
+            std::cerr << "parse error" << std::endl;
+            return false;
         }
 
         _x = root["x"].asInt();
         _y = root["y"].asInt();
         _oper = root["oper"].asInt();
+
+        return true;
     }
 
     ~Request()
@@ -123,10 +126,10 @@ public:
         return _oper;
     }
 
-private:
+public:
     int _x;
     int _y;
-    char _oper;
+    int _oper;
 };
 
 class Response
@@ -149,33 +152,35 @@ public:
         return result;
     }
 
-    void Deserialize(const std::string &netmessage)
+    bool Deserialize(const std::string &netmessage)
     {
         Json::Value root;
         Json::Reader reader;
 
-        if (!reader.parse(netmessage, root))
-        {
-            throw std::runtime_error("JSON parse error: " + reader.getFormattedErrorMessages());
-        }
+        std::string msg = netmessage;
+        while (msg.size() && isspace(msg.back()))
+            msg.pop_back();
 
-        if (!root.isMember("result") || !root.isMember("exit_code") || !root.isMember("desc"))
+        if (!reader.parse(msg, root))
         {
-            throw std::runtime_error("Missing field(s) in JSON");
-        }
-
-        if (!root["result"].isInt() || !root["exit_code"].isInt() || !root["desc"].isString())
-        {
-            throw std::runtime_error("Invalid JSON field type(s)");
+            std::cerr << "parse error" << std::endl;
+            return false;
         }
 
         _result = root["result"].asInt();
         _exit_code = root["exit_code"].asInt();
         _desc = root["desc"].asString();
+
+        return true;
     }
 
     ~Response()
     {
+    }
+
+    void Print()
+    {
+        std::cout << "_result = " << _result << ", _exit_code = " << _exit_code << ", _desc = " << _desc << std::endl;
     }
 
 public:
@@ -183,7 +188,6 @@ public:
     int _exit_code;    // 退出码
     std::string _desc; // 退出信息
 };
-
 
 class Factory
 {

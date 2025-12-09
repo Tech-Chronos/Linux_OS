@@ -4,7 +4,7 @@ TcpServer:TcpEchoServer.cc
 	g++ -o $@ $^ -std=c++14 -ljsoncpp
 
 TcpClient:TcpEchoClient.cc
-	g++ -o $@ $^ -std=c++14
+	g++ -o $@ $^ -std=c++14 -ljsoncpp
 
 .PHONY:clean
 clean:
