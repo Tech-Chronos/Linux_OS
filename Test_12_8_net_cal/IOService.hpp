@@ -23,7 +23,11 @@ public:
         {
             // 1. 接收完整一条消息
             std::string in;
-            sock->RecvMessage(&in);
+            int res = sock->RecvMessage(&in);
+            if (res <= 0)
+            {
+                break;
+            }
 
             // std::cout << "server receive: " << in << std::endl;
 

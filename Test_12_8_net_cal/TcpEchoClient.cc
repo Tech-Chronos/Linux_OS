@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
     {
         while (true)
         {
+            std::cout << "--------------------------------------------" << std::endl;
             // 1. 构建请求
             auto req = Factory::BuildRequest();
             req->_x = rand() % 10;
@@ -60,7 +61,7 @@ int main(int argc, char *argv[])
             client->RecvMessage(&in);
             recvmessage += in;
 
-            std::cout << "recvmessage ->" << recvmessage << std::endl;
+            //std::cout << "recvmessage ->" << recvmessage << std::endl;
             // 5. decode
             std::string full_message;
             while (Decode(recvmessage, &full_message))
@@ -75,7 +76,9 @@ int main(int argc, char *argv[])
                     std::cerr << "Deserialize error!" << std::endl;
                 }
             }
-            sleep(100);
+            std::cout << "--------------------------------------------" << std::endl;
+
+            sleep(1);
         }
     }
 

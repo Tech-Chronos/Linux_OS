@@ -169,7 +169,6 @@ public:
         else
         {
             LOG(ERROR, "recv error or server quit!");
-            exit(-1);
         }
         std::cout << *in << std::endl;
         return n;

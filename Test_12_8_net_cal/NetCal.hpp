@@ -13,7 +13,9 @@ public:
 
     std::shared_ptr<Response> Calculate(std::shared_ptr<Request> req)
     {
-        std::shared_ptr<Response> resp;
+        //std::shared_ptr<Response> resp;
+
+        auto resp = Factory::BuildResponse();
         switch (req->GetOper())
         {
         case '+':
