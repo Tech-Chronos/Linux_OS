@@ -56,10 +56,10 @@ private:
         TcpServer *self = td->_server;
 
         std::string request;
-        while (true)
-        {
-            td->_service_fd->RecvMessage(&request);
+        int ret = td->_service_fd->RecvMessage(&request);
 
+        if (ret > 0)
+        {
             LOG(INFO, "request: %s", request.c_str());
             // 处理请求
             std::string resp = self->_func(request);
