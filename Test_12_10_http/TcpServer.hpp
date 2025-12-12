@@ -60,7 +60,7 @@ private:
 
         if (ret > 0)
         {
-            LOG(INFO, "request: %s", request.c_str());
+            //LOG(INFO, "\nrequest: %s", request.c_str());
             // 处理请求
             std::string resp = self->_func(request);
 

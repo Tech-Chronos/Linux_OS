@@ -51,7 +51,7 @@ private:
             if (header.empty())
             {
                 netmessage.erase(0, base_sep.size());
-                _data = netmessage.substr(0);
+                _data += netmessage.substr(0);
                 break;
             }
             else
@@ -68,13 +68,26 @@ private:
         std::stringstream ss(_req_line);
         ss >> _req_func >> _url >> _http_version;
 
+        // /?a=2&b=5
         if (_url == "/")
         {
             _url = net_root + default_page;
         }
         else
         {
+            // wwwroot/?a=2&b=5
             _url = net_root + _url;
+        }
+
+        if (_req_func == "GET")
+        {
+            // // wwwroot/?a=2&b=5
+            auto pos = _url.find("?");
+            if (pos != std::string::npos)
+            {
+                _data = _url.substr(pos + 1);
+                _url.resize(pos);
+            }
         }
     }
 
@@ -136,6 +149,16 @@ public:
     std::string GetURL()
     {
         return _url;
+    }
+
+    std::string GetData()
+    {
+        return _data;
+    }
+
+    std::string GetFunc()
+    {
+        return _req_func;
     }
 
     ~HttpRequest()
@@ -202,7 +225,7 @@ private:
         // 4. 读取内容
         ifs.read(&_data[0], size);
 
-        std::cout << _data << std::endl;
+        // std::cout << _data << std::endl;
 
         return size;
     }
@@ -217,6 +240,7 @@ private:
         auto pos = url.rfind(".");
         if (pos == std::string::npos)
         {
+            _suffix = ".default";
             LOG(FATAL, "no suffix");
             return -1;
         }
@@ -264,32 +288,45 @@ public:
 
         _content_type[".txt"] = "text/plain";
         _content_type[".json"] = "application/json";
+
+        _content_type[".default"] = "text/html";
     }
 
     std::string Serialize(std::string &url)
     {
-        // 1. 获取文件内容和大小
-        _file_size = GetFileContentAndSize(url);
-       
+
+        // 判断重定向
+        if (url == "./wwwroot/redir")
+        {
+            _exit_code = 301;
+            _exit_desc = _code_table[301];
+
+            _header_kv["Location"] = "https://www.qq.com";
+
+            _file_size = 0;
+
+            // LOG(DEBUG, "重定向设置成功");
+        }
+        else
+        {
+            // 1. 获取文件内容和大小 -- 退出码和退出描述的设置
+            _file_size = GetFileContentAndSize(url);
+        }
         // 2. 构造响应行
         SetRespLine();
 
         // 3. 获取url后缀，构造Content—Type
-        int ret = GetSuffix(url);
-        if (ret != -1)
-        {
-        }
+        GetSuffix(url);
 
-        // 4. 增加报头
+        // 4. 增加报头 -- KV 结构
         AddHeader();
-
-        // 5. 构造完整的报头
+        // 5. 构造完整的报头 -- string
         CreateFullHeaders();
 
         // 6. 完整的反序列化
         _full_resp_message = _resp_line + _resp_headers + _empty_line + _data;
 
-        LOG(DEBUG, "_full_resp_message = \n%s", _full_resp_message.c_str());
+        LOG(DEBUG, "\n_full_resp_message = \n%s", _full_resp_message.c_str());
         return _full_resp_message;
     }
 
@@ -298,15 +335,16 @@ public:
     }
 
 private:
+    // 完整的 response
+    std::string _resp_headers; // 响应报头
+    std::string _resp_line;    // 响应状态行
+    std::string _empty_line;
+    std::string _data; // 真正的有效载荷
+
+    // 状态行详细信息
     std::string _http_version;
     int _exit_code;
     std::string _exit_desc;
-
-    std::string _resp_headers; // 响应报头
-    std::string _resp_line;    // 响应行
-    std::string _empty_line;
-
-    std::string _data; // 真正的有效载荷
 
     std::unordered_map<int, std::string> _code_table;           // 退出码和退出描述的格式
     std::unordered_map<std::string, std::string> _content_type; // 告诉客户端body的类型
@@ -318,11 +356,13 @@ private:
     std::string _full_resp_message;
 };
 
+using web_f = std::function<HttpResponse(HttpRequest &)>;
 class HttpServer
 {
 public:
-    HttpServer()
+    HttpServer(web_f func)
     {
+        _list_func["/login"] = func;
     }
 
     std::string HandlerRequest(std::string &req)
@@ -337,20 +377,41 @@ public:
         // std::cout << "start to deseralize ..." << std::endl;
         req_ptr->Deseralize(req);
 
-        // req_ptr->Print();
+        req_ptr->Print();
 
         std::string url = req_ptr->GetURL();
         // std::cout << "url -> " << url << std::endl;
 
+        std::string req_func = req_ptr->GetFunc();
+        if (req_func == "POST")
+        {
+            auto dot_pos = url.find(".html");
+            if (dot_pos != std::string::npos)
+            {}
+            else
+            {
+                auto pos = url.rfind(net_root);
+
+                std::string func_name = url.substr(pos + net_root.size());
+
+                LOG(DEBUG, "func_name = %s", func_name.c_str());
+                // HttpRequest req;
+                HttpResponse resp = _list_func[func_name](*req_ptr);
+
+                std::string index = "wwwroot/login.html";
+                return resp.Serialize(index);
+            }
+        }
+
         std::unique_ptr<HttpResponse> resp_ptr = std::make_unique<HttpResponse>();
 
         return resp_ptr->Serialize(url);
+#endif
     }
     ~HttpServer()
     {
     }
 
 private:
+    std::unordered_map<std::string, web_f> _list_func;
 };
-
-#endif
