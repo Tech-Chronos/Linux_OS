@@ -8,45 +8,61 @@
 
 using namespace std;
 
-int GetKey(const char* path)
-{
-    return ftok(path, 1);
-}
+#include <iostream>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <assert.h>
+#include <signal.h>
 
-int GetShm(int key, int size)
+void PrintSig(sigset_t &pending)
 {
-    int shmid = shmget(key, size, IPC_CREAT | IPC_EXCL);
-    return shmid;
-}
-
-void* At(int shmid)
-{
-    return shmat(shmid, nullptr, 0);
-}
-
-void Detach(void* addr)
-{
-    shmdt(addr);
-}
-
-void Delete(int shmid)
-{
-    shmctl(shmid, IPC_RMID, nullptr);
+    std::cout << "Pending bitmap:";
+    for(int signo = 31; signo > 0; signo--)
+    {
+        if(sigismember(&pending, signo))//检测pending位图中的信号是否存在
+        {
+            std::cout << "1";
+        }
+        else
+        {
+            std::cout << "0";
+        }
+    }
+    std::cout << std::endl;
 }
 
 int main()
 {
-    char path[1024];
+    //1.屏蔽2号信号
+    sigset_t block, oblock;//栈上定义的变量可能为随机值
+    sigemptyset(&block);// 清空信号集
+    sigemptyset(&oblock);
+    sigaddset(&block, 2);// 此时并未将2号信号写入到pcb block位图中，而是在栈中
 
-    getcwd(path, sizeof(path));
+    // 开始屏蔽2号信号，即设置进入内核中
+    int x = sigprocmask(SIG_SETMASK, &block, &oblock);
+    (void)x;// 取消无返回值接收报警
+    std::cout << "block 2 signal sucess" << std::endl;
 
-    int key = GetKey(path);
+    int count = 0;
+    while(true)
+    {
+        ++count;
+        //2.获取进程的pending位图
+        sigset_t pending;
+        sigemptyset(&pending);
+        x = sigpending(&pending);
+        assert(x == 0);
 
-    int shmid = GetShm(key, 4096);
+        //3.打印pending位图中收到信号
+        PrintSig(pending);
 
-    cout << "key: " << key << endl;
-    cout << "shmid: " << shmid << endl;
+        if (count == 20)
+        {
+            sigprocmask(SIG_UNBLOCK, &block, &oblock);
+        }
+        sleep(1);
+    }
 
-    Delete(shmid);
     return 0;
 }
