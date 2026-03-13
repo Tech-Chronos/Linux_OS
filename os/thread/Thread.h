@@ -9,8 +9,7 @@
 #include <functional>
 #include <pthread.h>
 
-using func_t = std::function<void(std::string&)>;
-
+template <typename T>
 class Thread
 {
 private:
@@ -27,7 +26,7 @@ private:
         return nullptr;
     }
 public:
-    Thread(const std::string& name, func_t func)
+    Thread(const std::string& name, const T& func)
         :_name(name)
         ,_func(func)
         ,_isrunning(false)
@@ -64,7 +63,7 @@ private:
     bool _isrunning;
     pthread_t _tid; // 线程tid
     std::string _name; // 线程名字
-    func_t _func; // 线程执行的函数
+    T _func; // 线程执行的函数
 };
 
 #endif //THREAD_THREAD_H
