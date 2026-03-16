@@ -141,8 +141,8 @@ public:
         Lock();
         _isrunning = false;
         // 唤醒所有的线程，防止有线程在等待任务
-        BroadCast();
-
+        if (_sleep_threads_num > 0)
+            BroadCast();
         UnLock();
 
         // 锁给消费者线程抢，这边阻塞回收
