@@ -5,19 +5,20 @@
 #ifndef CONCURRENTMEMORYPOOL_CENTRALCACHE_H
 #define CONCURRENTMEMORYPOOL_CENTRALCACHE_H
 #include "Common.h"
+#include "PageCache.h"
 
 class CentralCache
 {
 private:
     CentralCache() = default;
 
-    Span* FetchOneSpan(size_t size);
+    Span* FetchOneSpan(SpanList&, size_t);
 public:
     CentralCache(const CentralCache&) = delete;
     CentralCache& operator=(const CentralCache&) = delete;
 
     // 单例，对于所有的 thread cache 只有一个 central cache
-    static CentralCache* GetSinglton()
+    static CentralCache* GetSingleton()
     {
         if (_central_singlton == nullptr)
         {
@@ -31,6 +32,8 @@ public:
     }
 
     size_t FetchRangeObj(void*& start, void*& end, size_t batch_num, size_t size);
+
+    void ReleaseListToSpans(void* start, size_t size);
 private:
     SpanList _span_lists[NFREE_LISTS];
     static std::mutex _singlton_mutex;

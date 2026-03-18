@@ -12,9 +12,11 @@ class ThreadCache
 public:
     void* Allocate(size_t size);
 
+    void* FetchFromCentralCache(size_t bytes);
+
     void DeAllocate(void* ptr, size_t size);
 
-    void* FetchFromCentralCache(size_t bytes);
+    void ListTooLong(FreeList&, size_t size);
 
 private:
     FreeList _freelists[NFREE_LISTS];

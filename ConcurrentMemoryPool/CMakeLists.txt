@@ -11,4 +11,6 @@ add_executable(ConcurrentMemoryPool unit_test.cpp
         ConCurrent.h
         CentralCache.cpp
         CentralCache.h
+        PageCache.h
+        PageCache.cpp
 )

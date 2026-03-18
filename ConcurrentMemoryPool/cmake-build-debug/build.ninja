@@ -67,6 +67,12 @@ build CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o: CXX_COMPILER__Conc
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   OBJECT_FILE_DIR = CMakeFiles/ConcurrentMemoryPool.dir
 
+build CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Debug /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/PageCache.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
+  DEP_FILE = CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o.d
+  FLAGS = -g -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
+  OBJECT_FILE_DIR = CMakeFiles/ConcurrentMemoryPool.dir
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target ConcurrentMemoryPool
@@ -75,7 +81,7 @@ build CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o: CXX_COMPILER__Conc
 #############################################
 # Link the executable ConcurrentMemoryPool
 
-build ConcurrentMemoryPool: CXX_EXECUTABLE_LINKER__ConcurrentMemoryPool_Debug CMakeFiles/ConcurrentMemoryPool.dir/unit_test.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/ThreadCache.cc.o CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o
+build ConcurrentMemoryPool: CXX_EXECUTABLE_LINKER__ConcurrentMemoryPool_Debug CMakeFiles/ConcurrentMemoryPool.dir/unit_test.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/ThreadCache.cc.o CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o
   FLAGS = -g -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   POST_BUILD = :

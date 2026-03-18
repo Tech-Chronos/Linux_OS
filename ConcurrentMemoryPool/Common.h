@@ -8,23 +8,58 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
-
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 
 #include <cassert>
+#include <cstddef>
+#include <stdexcept>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
+inline static void* SystemAlloc(size_t kpage)
+{
+    if (kpage == 0) return nullptr;
+
+    size_t bytes = kpage << 12;
+
+#ifdef _WIN32
+    void* ptr = VirtualAlloc(nullptr, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+      if (ptr == nullptr) throw std::bad_alloc();
+      return ptr;
+#else
+    int flags = MAP_PRIVATE;
+#ifdef __APPLE__
+    flags |= MAP_ANON;        // macOS
+#else
+    flags |= MAP_ANONYMOUS;   // Linux
+#endif
+    void* ptr = mmap(nullptr, bytes, PROT_READ | PROT_WRITE, flags, -1, 0);
+    if (ptr == MAP_FAILED) throw std::bad_alloc();
+    return ptr;
+#endif
+}
+
 using std::cout;
 using std::endl;
 
 #if defined(__LP64__) || defined(_WIN64)
-    using PAGEID = unsigned long long;
+using PAGEID = unsigned long long;
 #else
-    using PAGEID = size_t;
+using PAGEID = size_t;
 #endif
+
 
 static const size_t MAX_BYTES = 256 * 1024;
 static const size_t NFREE_LISTS = 208;
+static const size_t NPAGE_LISTS = 129;
+static const size_t PAGE_SHIFT = 12;
 
 inline static void*& NextObj(void* obj)
 {
@@ -36,6 +71,8 @@ class FreeList
 public:
     FreeList()
         :_freelist(nullptr)
+        ,_max_size(1)
+        ,_size(0)
     {}
 
     void Push(void* obj)
@@ -43,6 +80,7 @@ public:
         assert(obj);
         NextObj(obj) = _freelist;
         _freelist = obj;
+        ++_size;
     }
 
     void* Pop()
@@ -50,7 +88,32 @@ public:
         assert(_freelist);
         void* obj = _freelist;
         _freelist = NextObj(obj);
+        --_size;
         return obj;
+    }
+
+    void Push_Range(void*& start, void*& end, size_t n)
+    {
+        assert(start && end);
+        NextObj(end) = _freelist;
+
+        _freelist = start;
+
+        _size += n;
+    }
+
+    void Pop_Range(void*& start, void*& end, size_t n)
+    {
+        start = _freelist;
+        end = start;
+
+        for (int i = 0; i < n - 1; ++i)
+        {
+            end = NextObj(end);
+        }
+        _size -= n;
+
+        _freelist = NextObj(end);
     }
 
     bool Empty()
@@ -63,9 +126,15 @@ public:
         return _max_size;
     }
 
+    size_t Size()
+    {
+        return _size;
+    }
+
 private:
     void* _freelist;
-    size_t _max_size = 1;
+    size_t _max_size;
+    size_t _size;
 };
 
 class SizeClass
@@ -177,6 +246,20 @@ public:
 
         return nums;
     }
+
+    static size_t NumMovePage(size_t size)
+    {
+        assert(size > 0);
+        size_t nums = NumMoveSize(size); // 计算出需要在这个桶里分配多少内存块的上限
+        size_t bytes = nums * size; // 计算出总共的大小
+
+        size_t npage = bytes >> PAGE_SHIFT; // 计算出一共需要多少页
+
+        if (npage == 0)
+            npage = 1;
+
+        return npage;
+    }
 };
 
 // 大页
@@ -207,6 +290,21 @@ public:
         _head->_next = _head;
     }
 
+    Span* Begin()
+    {
+        return _head->_next;
+    }
+
+    Span* End()
+    {
+        return _head;
+    }
+
+    bool Empty()
+    {
+        return _head->_next == _head;
+    }
+
     void Insert(Span* pos, Span* new_span)
     {
         assert(new_span);
@@ -219,7 +317,7 @@ public:
         new_span->_next = pos;
     }
 
-    void Erase(Span* pos)
+    Span* Erase(Span* pos)
     {
         assert(pos);
         assert(_head != pos);
@@ -229,6 +327,23 @@ public:
 
         prev->_next = next;
         next->_prev = prev;
+
+        return pos;
+    }
+
+    void Push_Front(Span* new_span)
+    {
+        Insert(Begin(), new_span);
+    }
+
+    Span* Pop_Front()
+    {
+        return Erase(Begin());
+    }
+
+    void Push_Back(Span* new_span)
+    {
+        Insert(End(), new_span);
     }
 
 private:
