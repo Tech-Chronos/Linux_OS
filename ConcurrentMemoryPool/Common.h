@@ -8,6 +8,7 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <unordered_map>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -27,7 +28,7 @@ inline static void* SystemAlloc(size_t kpage)
 {
     if (kpage == 0) return nullptr;
 
-    size_t bytes = kpage << 12;
+    size_t bytes = kpage << 13;
 
 #ifdef _WIN32
     void* ptr = VirtualAlloc(nullptr, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
@@ -46,6 +47,21 @@ inline static void* SystemAlloc(size_t kpage)
 #endif
 }
 
+inline static void SystemFree(void* ptr, size_t kpage)
+{
+    if (ptr == nullptr || kpage == 0) return;
+
+    size_t bytes = kpage << 13;
+
+#ifdef _WIN32
+    BOOL ret = VirtualFree(ptr, 0, MEM_RELEASE);
+      if (ret == 0) throw std::runtime_error("VirtualFree failed");
+#else
+    int ret = munmap(ptr, bytes);
+    if (ret != 0) throw std::runtime_error("munmap failed");
+#endif
+}
+
 using std::cout;
 using std::endl;
 
@@ -56,10 +72,10 @@ using PAGEID = size_t;
 #endif
 
 
-static const size_t MAX_BYTES = 256 * 1024;
+static const size_t MAX_BYTES = 512 * 1024;
 static const size_t NFREE_LISTS = 208;
 static const size_t NPAGE_LISTS = 129;
-static const size_t PAGE_SHIFT = 12;
+static const size_t PAGE_SHIFT = 13;
 
 inline static void*& NextObj(void* obj)
 {
@@ -112,8 +128,9 @@ public:
             end = NextObj(end);
         }
         _size -= n;
-
         _freelist = NextObj(end);
+
+        NextObj(end) = nullptr;
     }
 
     bool Empty()
@@ -139,7 +156,7 @@ private:
 
 class SizeClass
 {
-private:
+public:
     // align_size 表示对齐数，size 表示你需要的空间是多大，返回值是我实际给你的空间大小
     static size_t _RoundUp(size_t size, size_t align_size)
     {
@@ -167,9 +184,6 @@ public:
     // 当用户要开辟Size空间，计算我要给多少空间
     static size_t RoundUp(size_t size)
     {
-        // 必须小于 256 KB，不然要去Central Cache取
-        assert(size < MAX_BYTES);
-
         // 整体的浪费空间的大小控制在 10% 左右
         if (size <= 128) //128 B, 8B 对齐
         {
@@ -193,8 +207,7 @@ public:
         }
         else
         {
-            assert(false);
-            return -1;
+            return _RoundUp(size, 1 << PAGE_SHIFT);
         }
     }
 
@@ -253,7 +266,7 @@ public:
         size_t nums = NumMoveSize(size); // 计算出需要在这个桶里分配多少内存块的上限
         size_t bytes = nums * size; // 计算出总共的大小
 
-        size_t npage = bytes >> PAGE_SHIFT; // 计算出一共需要多少页
+        size_t npage = (bytes + ((size_t)1 << PAGE_SHIFT) - 1) >> PAGE_SHIFT; // 向上取整到页数
 
         if (npage == 0)
             npage = 1;
@@ -276,6 +289,8 @@ struct Span
     int _use_count; // 分出去的内存块的个数
 
     size_t _obj_size;
+
+    bool _is_used = false;
 };
 
 

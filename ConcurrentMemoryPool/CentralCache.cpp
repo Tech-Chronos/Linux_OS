@@ -19,47 +19,7 @@ Span* CentralCache::FetchOneSpan(SpanList& list, size_t size)
         }
         it = it->_next;
     }
-    // 出循环说明没有当前的桶没有span，可以解锁
-    list._mutex.unlock();
-
-    // 出来说明没找到span，要从page cache中获取
-    PageCache* page_instance = PageCache::GetSingleton();
-    // 访问 page 要加锁
-    page_instance->_page_mutex.lock();
-    Span* span = page_instance->NewSpan(SizeClass::NumMovePage(size));
-    page_instance->_page_mutex.unlock();
-
-    // 拿到了span，对span的操作，是线程私有的，不需要加锁
-    assert(span);
-
-    span->_obj_size = size;
-    span->_use_count = 0;
-    // 获取之后要进行切割，放到freelist中，根据页号算出起始地址
-    char* begin = (char*)((span->_page_id) << PAGE_SHIFT);
-    // 计算出总共的大小
-    size_t bytes = ((span->_npage) << PAGE_SHIFT);
-    char* end = begin + bytes;
-
-    span->_free_lists = begin;
-    begin += size;
-
-    // 把 span 切成定长小块并串成单链表
-    void* tail = span->_free_lists;
-    while (begin < end)
-    {
-        NextObj(tail) = begin;
-        tail = begin;
-        begin += size;
-    }
-    NextObj(tail) = nullptr;
-
-    // 将span插入list中，可能会干扰其他线程获取span，要加锁
-    list._mutex.lock();
-    // 要把span插入到list
-    list.Push_Front(span);
-    list._mutex.unlock();
-
-    return span;
+    return nullptr;
 }
 
 // distribute_nums:分配多少个内存块，size:每块多大
@@ -72,6 +32,41 @@ size_t CentralCache::FetchRangeObj(void*& start, void*& end, size_t distribute_n
     _span_lists[index]._mutex.lock();
     // 在对应的下标中获取一个 span
     Span* span = FetchOneSpan(_span_lists[index], size);
+    if (span == nullptr)
+    {
+        _span_lists[index]._mutex.unlock();
+
+        PageCache* page_instance = PageCache::GetSingleton();
+        page_instance->_page_mutex.lock();
+        span = page_instance->NewSpan(SizeClass::NumMovePage(size));
+        page_instance->_page_mutex.unlock();
+
+        assert(span);
+        span->_obj_size = size;
+        span->_use_count = 0;
+        span->_is_used = true;
+
+        char* begin = (char*)((span->_page_id) << PAGE_SHIFT);
+        size_t bytes = ((span->_npage) << PAGE_SHIFT);
+        char* end_bound = begin + bytes;
+        assert(bytes >= size);
+        assert(begin < end_bound);
+
+        span->_free_lists = begin;
+        begin += size;
+
+        void* tail = span->_free_lists;
+        while (begin < end_bound)
+        {
+            NextObj(tail) = begin;
+            tail = begin;
+            begin += size;
+        }
+        NextObj(tail) = nullptr;
+
+        _span_lists[index]._mutex.lock();
+        _span_lists[index].Push_Front(span);
+    }
     assert(span);
     assert(span->_free_lists);
 
@@ -95,8 +90,42 @@ size_t CentralCache::FetchRangeObj(void*& start, void*& end, size_t distribute_n
     return actual_num;
 }
 
+// 归还的可能不止一个span
 void CentralCache::ReleaseListToSpans(void* start, size_t size)
 {
+    size_t index = SizeClass::Index(size);
+    // 加桶锁
+    _span_lists[index]._mutex.lock();
+    while (start)
+    {
+        void* next = NextObj(start);
+        Span* span = PageCache::GetSingleton()->PageToSpan(start);
 
+        NextObj(start) = span->_free_lists;
+        span->_free_lists = start;
+        --span->_use_count;
+
+        // 对于某个span已经没有使用的小块内存了
+        if (span->_use_count == 0)
+        {
+            _span_lists[index].Erase(span);
+            span->_free_lists = nullptr;
+            span->_prev = nullptr;
+            span->_next = nullptr;
+
+            // 对这个span修改好，可以解锁
+            _span_lists[index]._mutex.unlock();
+
+            PageCache::GetSingleton()->_page_mutex.lock();
+
+            PageCache::GetSingleton()->ReleaseSpanToPageCache(span);
+            PageCache::GetSingleton()->_page_mutex.unlock();
+
+            _span_lists[index]._mutex.lock();
+        }
+
+        start = next;
+    }
+
+    _span_lists[index]._mutex.unlock();
 }
-

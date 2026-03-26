@@ -2,17 +2,30 @@
 
 void Alloc1()
 {
-    for (int i = 0; i < 5; ++i)
+    std::vector<void*> v;
+    for (int i = 0; i < 17; ++i)
     {
-        ConcurrentMalloc(110 * 1024);
+        void *ret = ConcurrentMalloc(110 * 1024);
+        v.emplace_back(ret);
+    }
+    for (auto e : v)
+    {
+        ConcurrentDelete(e);
     }
 }
 
 void Alloc2()
 {
-    for (int i = 0; i < 5; ++i)
+    std::vector<void*> v;
+    for (int i = 0; i < 15; ++i)
     {
-        ConcurrentMalloc(1);
+        void* ret = ConcurrentMalloc(7);
+        v.push_back(ret);
+    }
+
+    for (auto e : v)
+    {
+        ConcurrentDelete(e);
     }
 }
 
@@ -20,8 +33,8 @@ void Alloc2()
 void TLSTest()
 {
     std::thread t1(Alloc1);
-    t1.join();
     std::thread t2(Alloc2);
+    t1.join();
     t2.join();
 }
 
@@ -32,12 +45,16 @@ void TestConCurrentAlloc1()
     void* p3 = ConcurrentMalloc(1);
     void* p4 = ConcurrentMalloc(7);
     void* p5 = ConcurrentMalloc(8);
+    void* p6 = ConcurrentMalloc(2);
+    void* p7 = ConcurrentMalloc(5);
 
-    cout << p1 << endl;
-    cout << p2 << endl;
-    cout << p3 << endl;
-    cout << p4 << endl;
-    cout << p5 << endl;
+    ConcurrentDelete(p1);
+    ConcurrentDelete(p2);
+    ConcurrentDelete(p3);
+    ConcurrentDelete(p4);
+    ConcurrentDelete(p5);
+    ConcurrentDelete(p6);
+    ConcurrentDelete(p7);
 }
 
 void TestConCurrentAlloc2()
@@ -52,10 +69,17 @@ void TestConCurrentAlloc2()
     cout << p2 << endl;
 }
 
-
-int main()
+void TestConCurrentDeAlloc()
 {
-    TestConCurrentAlloc2();
-
-    return 0;
+    void* p1 = ConcurrentMalloc(6);
+    ConcurrentDelete(p1);
 }
+
+
+//int main()
+//{
+//    TLSTest();
+//    //TestConCurrentDeAlloc();
+//
+//    return 0;
+//}

@@ -34,6 +34,7 @@ public:
     size_t FetchRangeObj(void*& start, void*& end, size_t batch_num, size_t size);
 
     void ReleaseListToSpans(void* start, size_t size);
+
 private:
     SpanList _span_lists[NFREE_LISTS];
     static std::mutex _singlton_mutex;

@@ -12,7 +12,7 @@
 
 # =============================================================================
 # Project: ConcurrentMemoryPool
-# Configurations: Debug
+# Configurations: Release
 # =============================================================================
 
 #############################################
@@ -24,7 +24,7 @@ ninja_required_version = 1.5
 #############################################
 # Set configuration variable for custom commands.
 
-CONFIGURATION = Debug
+CONFIGURATION = Release
 # =============================================================================
 # Include auxiliary files.
 
@@ -39,7 +39,7 @@ include CMakeFiles/rules.ninja
 #############################################
 # Logical path to working directory; prefix for absolute paths.
 
-cmake_ninja_workdir = /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-debug/
+cmake_ninja_workdir = /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-release/
 # =============================================================================
 # Object build statements for EXECUTABLE target ConcurrentMemoryPool
 
@@ -49,33 +49,33 @@ cmake_ninja_workdir = /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-
 
 build cmake_object_order_depends_target_ConcurrentMemoryPool: phony || .
 
-build CMakeFiles/ConcurrentMemoryPool.dir/unit_test.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Debug /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/unit_test.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
+build CMakeFiles/ConcurrentMemoryPool.dir/unit_test.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Release /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/unit_test.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
   DEP_FILE = CMakeFiles/ConcurrentMemoryPool.dir/unit_test.cpp.o.d
-  FLAGS = -g -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O3 -DNDEBUG -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   OBJECT_FILE_DIR = CMakeFiles/ConcurrentMemoryPool.dir
 
-build CMakeFiles/ConcurrentMemoryPool.dir/ThreadCache.cc.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Debug /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/ThreadCache.cc || cmake_object_order_depends_target_ConcurrentMemoryPool
+build CMakeFiles/ConcurrentMemoryPool.dir/ThreadCache.cc.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Release /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/ThreadCache.cc || cmake_object_order_depends_target_ConcurrentMemoryPool
   DEP_FILE = CMakeFiles/ConcurrentMemoryPool.dir/ThreadCache.cc.o.d
-  FLAGS = -g -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O3 -DNDEBUG -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   OBJECT_FILE_DIR = CMakeFiles/ConcurrentMemoryPool.dir
 
-build CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Debug /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/CentralCache.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
+build CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Release /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/CentralCache.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
   DEP_FILE = CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o.d
-  FLAGS = -g -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O3 -DNDEBUG -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   OBJECT_FILE_DIR = CMakeFiles/ConcurrentMemoryPool.dir
 
-build CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Debug /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/PageCache.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
+build CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Release /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/PageCache.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
   DEP_FILE = CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o.d
-  FLAGS = -g -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O3 -DNDEBUG -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   OBJECT_FILE_DIR = CMakeFiles/ConcurrentMemoryPool.dir
 
-build CMakeFiles/ConcurrentMemoryPool.dir/BenchMark.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Debug /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/BenchMark.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
+build CMakeFiles/ConcurrentMemoryPool.dir/BenchMark.cpp.o: CXX_COMPILER__ConcurrentMemoryPool_unscanned_Release /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/BenchMark.cpp || cmake_object_order_depends_target_ConcurrentMemoryPool
   DEP_FILE = CMakeFiles/ConcurrentMemoryPool.dir/BenchMark.cpp.o.d
-  FLAGS = -g -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
+  FLAGS = -O3 -DNDEBUG -std=gnu++20 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk -fcolor-diagnostics
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   OBJECT_FILE_DIR = CMakeFiles/ConcurrentMemoryPool.dir
 
@@ -87,8 +87,8 @@ build CMakeFiles/ConcurrentMemoryPool.dir/BenchMark.cpp.o: CXX_COMPILER__Concurr
 #############################################
 # Link the executable ConcurrentMemoryPool
 
-build ConcurrentMemoryPool: CXX_EXECUTABLE_LINKER__ConcurrentMemoryPool_Debug CMakeFiles/ConcurrentMemoryPool.dir/unit_test.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/ThreadCache.cc.o CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/BenchMark.cpp.o
-  FLAGS = -g -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk
+build ConcurrentMemoryPool: CXX_EXECUTABLE_LINKER__ConcurrentMemoryPool_Release CMakeFiles/ConcurrentMemoryPool.dir/unit_test.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/ThreadCache.cc.o CMakeFiles/ConcurrentMemoryPool.dir/CentralCache.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/PageCache.cpp.o CMakeFiles/ConcurrentMemoryPool.dir/BenchMark.cpp.o
+  FLAGS = -O3 -DNDEBUG -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX26.0.sdk
   OBJECT_DIR = CMakeFiles/ConcurrentMemoryPool.dir
   POST_BUILD = :
   PRE_LINK = :
@@ -100,7 +100,7 @@ build ConcurrentMemoryPool: CXX_EXECUTABLE_LINKER__ConcurrentMemoryPool_Debug CM
 # Utility command for edit_cache
 
 build CMakeFiles/edit_cache.util: CUSTOM_COMMAND
-  COMMAND = cd /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-debug && /Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
+  COMMAND = cd /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-release && /Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
   DESC = No interactive CMake dialog available...
   restat = 1
 
@@ -111,7 +111,7 @@ build edit_cache: phony CMakeFiles/edit_cache.util
 # Utility command for rebuild_cache
 
 build CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
-  COMMAND = cd /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-debug && /Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake --regenerate-during-build -S/Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool -B/Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-debug
+  COMMAND = cd /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-release && /Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake --regenerate-during-build -S/Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool -B/Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-release
   DESC = Running CMake to regenerate build system...
   pool = console
   restat = 1
@@ -127,14 +127,14 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 # =============================================================================
 
 #############################################
-# Folder: /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-debug
+# Folder: /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-release
 
 build codegen: phony
 
 # =============================================================================
 
 #############################################
-# Folder: /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-debug
+# Folder: /Users/dsj/Desktop/Memory_Pool/ConcurrentMemoryPool/cmake-build-release
 
 build all: phony ConcurrentMemoryPool
 
