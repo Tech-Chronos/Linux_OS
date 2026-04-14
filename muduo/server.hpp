@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <list>
 #include <algorithm>
 #include <functional>
 #include <unordered_map>
@@ -22,6 +23,7 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <sys/timerfd.h>
 
 
 #define LOG_INF 0
@@ -497,6 +499,8 @@ public:
 
     void DisableWrite();
 
+    void Remove();
+
     // // // // // // // // // // // // 设置回调 // // // // // // // // // // // // // // // 
     void SetReadCB(const EventCallbck& cb)
     {
@@ -654,7 +658,125 @@ private:
     std::unordered_map<int, Channel*> _care_fd; // 哈希表管理是关心的那些文件描述符
 };
 
-// // // // // // // // // // // // EventLop // // // // // // // // // // // // // // // 
+// // // // // // // // // // // // TimerTask & TimerWheel // // // // // // // // // // // // // // // 
+using TimerFunc = std::function<void()>;
+using ReleaseFunc = std::function<void()>;
+class TimerTask
+{
+public:
+    TimerTask(uint64_t id, uint32_t timeout, const TimerFunc& timer_func)
+        : _id(id)
+        , _timeout(timeout)
+        , _timer_func(timer_func)
+        , _cancel(false)
+    {}
+
+    uint32_t Timeout()
+    {
+        return _timeout;
+    }
+
+    void Cancel()
+    {
+        _cancel = true;
+    }
+
+    void SetRelease(const ReleaseFunc& release_func)
+    {
+        _release_func = release_func;
+    }
+
+    ~TimerTask()
+    {
+        if (!_cancel)
+            _timer_func();
+        if (_release_func)
+            _release_func();
+    }
+
+private:
+    uint64_t _id; // 任务id
+    uint32_t _timeout; // 啥时候到时间
+    TimerFunc _timer_func; // 到时间了该执行的任务
+    ReleaseFunc _release_func; // 到时间自动析构，从TimerWheel的哈希表中删除
+    bool _cancel; // 是否取消这个定时任务
+};
+
+// 时间轮
+using SharedTimerTask = std::shared_ptr<TimerTask>;
+using WeakTimerTask = std::weak_ptr<TimerTask>;
+class TimerWheel
+{
+private:
+
+    void RemoveFromTimerWheel(uint64_t id)
+    {
+        if (IfExists(id))
+        {
+            _timers_record.erase(id);
+        }
+    }
+public:
+    TimerWheel()
+        : _tick(0)
+        , _capacity(60)
+        , _wheels(_capacity)
+    {}
+
+    bool IfExists(uint64_t id)
+    {
+        auto it = _timers_record.find(id);
+        return it != _timers_record.end();
+    }
+
+    void SetTimerTask(uint64_t id, uint32_t timeout, const TimerFunc& timer_func)
+    {
+        if (!IfExists(id))
+        {
+            SharedTimerTask s_task = std::make_shared<TimerTask>(id, timeout, timer_func);
+            s_task->SetRelease(std::bind(&TimerWheel::RemoveFromTimerWheel, this, id));
+            _wheels[(_tick + timeout) % _capacity].push_front(s_task);
+            _timers_record[id] = WeakTimerTask(s_task);
+        }
+    }
+
+    void RefreshTimerTask(uint64_t id)
+    {
+        if (IfExists(id))
+        {
+            SharedTimerTask s_task = _timers_record[id].lock();
+            if (s_task)
+                _wheels[(_tick + s_task->Timeout()) % _capacity].push_front(s_task);
+        }
+    }
+
+    void RemoveTimerTask(uint64_t id)
+    {
+        if (IfExists(id))
+        {
+            SharedTimerTask s_task = _timers_record[id].lock();
+            if (s_task)
+                s_task->Cancel();
+            _timers_record.erase(id);
+        }
+    }
+
+    void Tick(int nums)
+    {
+        while (nums--)
+        {
+            _tick = (_tick  + 1) % _capacity;
+            _wheels[_tick].clear();
+        }  
+    }
+private:
+    std::vector<std::list<SharedTimerTask>> _wheels; // 用二维数组来表示时间轮
+    int _tick; // 当前指针走到哪里了
+    int _capacity; // 时间轮的容量
+    std::unordered_map<uint64_t, WeakTimerTask> _timers_record;  // 如果要更新，如何找到对应的ptr
+};
+
+// // // // // // // // // // // // EventLoop // // // // // // // // // // // // // // // 
 using pending_task = std::function<void()>;
 class EventLoop
 {
@@ -692,7 +814,7 @@ private:
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 return;
-            ERR_LOG("WakeUpEpollToDoPending Error!");
+            ERR_LOG("Wake Up Epoll To Do Pending Error!");
             exit(-1);
         }
     }
@@ -709,16 +831,63 @@ private:
             exit(-1);
         }
     }
+
+    int CreateTimerFd()
+    {
+        int ret = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+        if (ret < 0)
+        {
+            ERR_LOG("Create TimerFd Error!");
+            exit(-1);
+        }
+
+        return ret;
+    }
+
+    void SetTimer()
+    {
+        struct itimerspec new_value;
+        bzero(&new_value, sizeof(new_value));
+        new_value.it_value.tv_sec = 1;
+        new_value.it_value.tv_nsec = 0;
+
+        new_value.it_interval.tv_sec = 1;
+        new_value.it_interval.tv_nsec = 0;
+        timerfd_settime(_timer_fd, 0, &new_value, nullptr);
+    }
+
+    void TimerReadCb()
+    {
+        uint64_t num;
+        int ret = read(_timer_fd, &num, sizeof(num));
+        if (ret < 0)
+        {
+            if (errno == EWOULDBLOCK || errno == EINTR)
+                return;
+            ERR_LOG("TimerReadCb Error!");
+            exit(-1);
+        }
+        _timer_wheel->Tick(num);
+    }
 public:
     EventLoop()
         : _thread_id(std::this_thread::get_id())
         , _event_fd(CreateEventFd())
         , _event_channel(_event_fd, this)
+        , _timer_fd(CreateTimerFd())
+        , _timer_channel(_timer_fd, this)
+        , _timer_wheel(std::make_unique<TimerWheel>())
     {
+        // 将event fd注册进epoll
         _event_channel.SetReadCB(std::bind(&EventLoop::EventRead, this));
-
         _event_channel.EnableRead();
         _poll.UpdateEvent(&_event_channel);
+
+        // 将timer fd注册进epoll
+        _timer_channel.SetReadCB(std::bind(&EventLoop::TimerReadCb, this));
+        _timer_channel.EnableRead();
+        _poll.UpdateEvent(&_timer_channel);
+        SetTimer();
     }
 
     bool IsInLoop()
@@ -726,9 +895,14 @@ public:
         return _thread_id == std::this_thread::get_id();
     }
 
+    bool AssertInLoop()
+    {
+        assert(_thread_id == std::this_thread::get_id());
+    }
+
     void RunInLoop(const pending_task& task)
     {
-        if (!IsInLoop())
+        if (IsInLoop())
         {
             task();
             return;
@@ -755,6 +929,7 @@ public:
         _poll.RemoveEvent(channel);
     }
 
+    // 开始循环
     void Loop()
     {
         while (true)
@@ -769,11 +944,41 @@ public:
         }
     }
 
+    void AddTimerTask(uint64_t id, uint32_t timeout, const TimerFunc& timer_func)
+    {
+        RunInLoop([this, id, timeout, timer_func = std::move(timer_func)]()->void 
+                 {
+                    _timer_wheel->SetTimerTask(id, timeout, timer_func);
+                 });
+    }
+
+    void RefreshTimerTask(uint64_t id)
+    {
+        RunInLoop([this, id]()->void 
+                 {
+                    _timer_wheel->RefreshTimerTask(id);
+                 });
+    }
+
+    void RemoveTimerTask(uint64_t id)
+    {
+        RunInLoop([this, id]()->void 
+                 {
+                    _timer_wheel->RemoveTimerTask(id);
+                 });
+    }
+
+    // 这个函数只能在EventLoop线程内部调用，因为有线程安全问题
+    bool IfExistTimerTask(uint64_t id)
+    {
+        return _timer_wheel->IfExists(id);
+    }
+
 private:
     std::thread::id _thread_id; // 当前线程的id
 
     Poll _poll; // epoll对象
-    std::unique_ptr<Channel> _channels; // 用智能指针管理 channel
+    //std::unique_ptr<Channel> _channels; // 用智能指针管理 channel
     std::vector<Channel*> _active_channel; // 有事件发生的 channel
 
     std::vector<pending_task> _pending; // 任务队列
@@ -781,6 +986,10 @@ private:
 
     int _event_fd; // 用于通知任务队列中有任务到来
     Channel _event_channel;
+
+    int _timer_fd; // 用于定时任务
+    Channel _timer_channel;
+    std::unique_ptr<TimerWheel> _timer_wheel; // 时间轮
 };
 
 // 启动读事件
@@ -794,7 +1003,7 @@ void Channel::EnableRead()
 void Channel::DisableRead()
 {
     _events &= ~EPOLLIN;
-    _loop->RemoveEvent(this);
+    _loop->UpdateEvent(this);
 }
 
 // 启动可写事件，在epoll中
@@ -807,7 +1016,418 @@ void Channel::EnableWrite()
 void Channel::DisableWrite()
 {
     _events &= ~EPOLLOUT;
+    _loop->UpdateEvent(this);
+}
+
+void Channel::Remove()
+{
+    _events = 0;
     _loop->RemoveEvent(this);
 }
 
+// // // // // // // // // // // // Connection // // // // // // // // // // // // // // // 
+// 作用：一个连接的相关操作：对socket、Channel、Buffer
+class Connection;
+using PtrConnection = std::shared_ptr<Connection>;
+using ConnectedCallback = std::function<void(PtrConnection)>;
+using MessageCallback = std::function<void(PtrConnection, Buffer*)>;
+using AnyEventCallback = std::function<void(PtrConnection)>;
+using ClosedCallback = std::function<void(PtrConnection)>;
 
+class Any
+{
+private:
+    void Swap(Any& other)
+    {
+        std::swap(_holder, other._holder);
+    }
+public:
+    Any()
+        : _holder(nullptr)
+    {}
+
+    template<class T>
+    Any(const T& val)
+        : _holder(new PlaceHolder<T>(val))
+    {}
+
+    Any(const Any& other)
+    {
+        delete other._holder;
+        _holder = other._holder == nullptr ? nullptr : other._holder->Clone();
+    }
+
+
+    template <class T>
+    Any& operator=(const T& val)
+    {
+        Any(val).Swap(*this);
+        return *this;
+    }
+
+    Any& operator=(Any other)
+    {
+        Swap(other);
+        return *this;
+    }
+
+    template <class T>
+    T* GetValAddr()
+    {
+        if (_holder && typeid(T) == _holder->GetType())
+        {
+            return &((PlaceHolder<T>*)_holder)->_val;
+        }
+        return nullptr;
+    }
+
+    ~Any()
+    {
+        delete _holder;
+    }
+
+private:
+    class Holder
+    {
+    public:
+        ~Holder() { }
+
+        virtual const std::type_info& GetType() = 0;
+
+        virtual Holder* Clone() = 0;
+    };
+
+    template<class T>
+    class PlaceHolder : public Holder
+    {
+    public:
+        PlaceHolder(const T& val)
+            :_val(val)
+        {}
+
+        const std::type_info& GetType() override
+        {
+            return typeid(T);
+        }
+
+        Holder* Clone() override
+        {
+            return new PlaceHolder<T>(_val);
+        }
+    public:
+        T _val;
+    };
+
+    // 基类指针指向派生类
+    Holder* _holder;
+};
+
+typedef enum 
+{ 
+    DISCONNECTED, 
+    CONNECTING, 
+    CONNECTED, 
+    DISCONNECTING 
+} ConnStatus;
+
+class Connection : public std::enable_shared_from_this<Connection>
+{
+private:
+    // // // // // // // // // // // // 五个事件处理回调函数 // // // // // // // // // // // // // // // 
+    // 当事件来的时候，绑定对应的函数
+    void HandleRead()
+    {
+        auto self = shared_from_this();
+        // 先从socket中读数据，放到inbuffer
+        char buffer[65536];
+        int ret = _socket.RecvNonBlock(buffer, sizeof(buffer));
+        if (ret == -2) // 读到EAGAIN
+            return; 
+        else if (ret == -1) // 读出错
+        {
+            return ShutDownInLoop(); 
+        }
+        else if (ret > 0)
+        {
+            _in_buffer.WriteAndPush(buffer, ret);
+        }
+
+        // 然后调用服务器传过来的业务处理函数
+        if (_in_buffer.ReadableSize() > 0)
+            if (_mess_cb)
+                _mess_cb(shared_from_this(), &_in_buffer);
+    }
+
+    void HandleWrite()
+    {
+        auto self = shared_from_this();
+        std::string str = _out_buffer.ReadStringAndPop(_out_buffer.ReadableSize());
+        
+        int ret = _socket.SendNonBlock(str.c_str(), str.size());
+        // 写错误，先处理接收缓冲区中的数据，然后关闭连接
+        if (ret == -1)
+        {
+            if (_in_buffer.ReadableSize() > 0)
+                if (_mess_cb)
+                    _mess_cb(self, &_in_buffer);
+            ReleaseInLoop();
+        }
+
+        if (_out_buffer.ReadableSize() == 0)
+        {
+            _channel.DisableWrite(); 
+            if (_status == DISCONNECTING)
+                ReleaseInLoop();
+        }
+    }
+    
+    void HandleClose()
+    {
+        auto self = shared_from_this();
+        if (_in_buffer.ReadableSize() > 0)
+            if (_mess_cb)
+                _mess_cb(shared_from_this(), &_in_buffer);
+        ReleaseInLoop();
+    }
+
+    void HandleError()
+    {
+        HandleClose();
+    }
+
+    void HandleAnyEvent()
+    {
+        auto self = shared_from_this();
+        if (_any_event_cb)
+            _any_event_cb(self);
+        
+        if (_enable_inactive_release)
+            _loop->RefreshTimerTask(_timer_id);
+    }
+
+    // // // // // // // // // // // // 放到任务队列中的任务 // // // // // // // // // // // // // // // 
+    // 连接到来的时候
+    void EstablishedInLoop()
+    {
+        assert(_status == CONNECTING);
+        _status = CONNECTED;
+
+        // 启动读事件
+        _channel.EnableRead();
+
+        // 调用服务器传过来的函数
+        if (_conn_cb)
+            _conn_cb(shared_from_this());
+    }
+
+    // 放到缓冲区，不是真正的发送
+    void SendInLoop(char* message, size_t len)
+    {
+        if (_status == DISCONNECTED)
+            return;
+
+        _out_buffer.WriteAndPush(message, len);
+        if (!_channel.Writeable())
+            _channel.EnableWrite();
+    }
+
+    void ShutDownInLoop()
+    {
+        _status = DISCONNECTING;
+
+        if (_in_buffer.ReadableSize() > 0)
+        {
+            if (_mess_cb)
+                _mess_cb(shared_from_this(), &_in_buffer);
+        }
+            
+        if (_out_buffer.ReadableSize() > 0)
+        {
+            if (!_channel.Writeable())
+                _channel.EnableWrite();
+        }
+
+        if (_out_buffer.ReadableSize() == 0)
+        {
+            ReleaseInLoop();
+        }
+    }
+
+    void EnableInactiveReleaseInLoop(int sec)
+    {
+        _enable_inactive_release = true;
+
+        if (_loop->IfExistTimerTask(_timer_id))
+        {
+            _loop->RefreshTimerTask(_timer_id);
+        }
+        else
+        {
+            std::weak_ptr<Connection> weak_con = shared_from_this();
+            _loop->AddTimerTask(_timer_id, sec, [weak_con]() -> 
+            void 
+            { 
+                auto shared_con = weak_con.lock();
+                if (shared_con)
+                    shared_con->ReleaseInLoop();
+            });
+        }
+    }
+
+    void CancelInactiveReleaseInLoop()
+    {
+        _enable_inactive_release = false;
+
+        if (_loop->IfExistTimerTask(_timer_id))
+        {
+            _loop->RemoveTimerTask(_timer_id);
+        }
+    }
+
+    void ReleaseInLoop()
+    {
+        _status = DISCONNECTED;
+
+        _channel.Remove();
+
+        _socket.Close();
+
+        if (_loop->IfExistTimerTask(_timer_id))
+        {
+            CancelInactiveReleaseInLoop();
+        }
+
+        if (_closed_cb)
+            _closed_cb(shared_from_this());
+        if (_server_close_cb)
+            _server_close_cb(shared_from_this());
+    }
+
+    void UpgradeInLoop(const Any& context, const ConnectedCallback& conn_cb,
+                const MessageCallback& mess_cb, const AnyEventCallback& any_event_cb,
+                const ClosedCallback& closed_cb)
+    {
+        _context = context;
+        _conn_cb = conn_cb;
+        _mess_cb = mess_cb;
+        _any_event_cb = any_event_cb;
+        _closed_cb = closed_cb;
+    }
+public:
+    Connection(uint64_t conn_id, uint64_t timer_id, int sockfd, EventLoop* loop)
+        : _conn_id(conn_id)
+        , _timer_id(timer_id)
+        , _sockfd(sockfd)
+        , _enable_inactive_release(false)
+        , _loop(loop)
+        , _channel(_sockfd, _loop)
+        , _status(CONNECTING)
+    {
+        _channel.SetReadCB([this] { HandleRead(); });
+        _channel.SetWriteCB([this] { HandleWrite(); });
+        _channel.SetAnyEventCB([this] { HandleAnyEvent(); });
+        _channel.SetCloseCB([this] { HandleClose(); });
+        _channel.SetErrorCB([this] { HandleError(); });
+    }
+
+    ~Connection()
+    {
+        DBG_LOG("Release Connection : %p", this);
+    }
+
+    // // // // // // // // // // // // 向外部提供的接口 // // // // // // // // // // // // // // // 
+    void Established()
+    {
+        _loop->RunInLoop([this] {EstablishedInLoop();});
+    }
+
+    // 发送数据，将这个数据放到发送缓冲区
+    void Send(char* message, size_t len)
+    {
+        _loop->RunInLoop([this, message, len]{ SendInLoop(message, len);});
+    }
+
+    // 先检查接收和发送缓冲区是否有数据，有线进行处理，处理完，在关闭
+    void ShutDown()
+    {
+        _loop->RunInLoop([this]{ ShutDownInLoop();});
+    }
+
+    // 开启非活跃连接的释放功能
+    void EnableInactiveRelease(int sec)
+    {
+        _loop->RunInLoop([this, sec]{ EnableInactiveReleaseInLoop(sec);});
+    }
+
+    // 关闭非活跃事件的释放功能
+    void CancelInactiveRelease()
+    {
+        _loop->RunInLoop([this]{ CancelInactiveReleaseInLoop();});
+    }
+
+    void Upgrade(const Any& context, const ConnectedCallback& conn_cb,
+                const MessageCallback& mess_cb, const AnyEventCallback& any_event_cb,
+                const ClosedCallback& closed_cb)
+    {
+        _loop->AssertInLoop();
+
+        _loop->RunInLoop( [=] { UpgradeInLoop(context, conn_cb, mess_cb, any_event_cb, closed_cb); } );
+    }
+
+    uint64_t TimerId()
+    {
+        return _timer_id;
+    }
+
+    uint64_t ConnId()
+    {
+        return _conn_id;
+    }
+
+    // 设置回调函数
+    void SetConnectedCallback(const ConnectedCallback& cb)
+    {
+        _conn_cb = cb;
+    }
+
+    void SetMessageCallback(const MessageCallback& cb)
+    {
+        _mess_cb = cb;
+    }
+
+    void SetAnyEventCallback(const AnyEventCallback& cb)
+    {
+        _any_event_cb = cb;
+    }
+
+    void SetClosedCallback(const ClosedCallback& cb)
+    {
+        _closed_cb = cb;
+    }
+
+    void SetServerClosedCallback(const ClosedCallback& cb)
+    {
+        _server_close_cb = cb;
+    }
+
+private:
+    uint64_t _conn_id; // 连接id
+    uint64_t _timer_id; // 定时器id
+    int _sockfd; // 这个连接的文件描述符
+    bool _enable_inactive_release; // 非活跃事件的开启 or 关闭 
+    Any _context; // 当前连接的协议
+
+    EventLoop* _loop; // 这个连接属于哪一个loop
+    Socket _socket; // 这个连接的文件描述符的相关操作
+    Channel _channel; // 这个连接事件触发的时候如何执行
+    Buffer _in_buffer; // 接收缓冲区
+    Buffer _out_buffer; // 发送缓冲区
+    ConnStatus _status; // 这个连接的状态  
+    
+    // 阶段处理函数
+    ConnectedCallback _conn_cb; // 连接到来处理函数
+    MessageCallback _mess_cb; // 事件处理回调函数
+    AnyEventCallback _any_event_cb; // 任意事件处理回调函数
+    ClosedCallback _closed_cb; // 连接关闭回调函数
+    ClosedCallback _server_close_cb; 
+};
