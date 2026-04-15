@@ -8,17 +8,17 @@ private:
         INF_LOG("new connection come: %ld", conn->ConnId());
     }
 
-    void OnClose(std::shared_ptr<Connection> conn)
+    void OnClose(const PtrConnection& conn)
     {
         INF_LOG("connection close: %ld", conn->ConnId());
     }
 
-    void OnMessage(std::shared_ptr<Connection> conn, Buffer *buf)
+    void OnMessage(const PtrConnection& conn, Buffer *buf)
     {
         if (buf->ReadableSize() > 0)
         {
             std::string data = buf->ReadStringAndPop(buf->ReadableSize());
-            conn->Send(const_cast<char *>(data.data()), data.size());
+            conn->Send(data.data(), data.size());
         }
     }
 

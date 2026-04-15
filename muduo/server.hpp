@@ -719,8 +719,8 @@ private:
     }
 public:
     TimerWheel()
-        : _tick(0)
-        , _capacity(60)
+        : _capacity(60)
+        , _tick(0)
         , _wheels(_capacity)
     {}
 
@@ -771,10 +771,10 @@ public:
         }  
     }
 private:
+    int _capacity; // 时间轮的容量
+    int _tick; // 当前指针走到哪里了
     std::unordered_map<uint64_t, WeakTimerTask> _timers_record;  // 如果要更新，如何找到对应的ptr
     std::vector<std::list<SharedTimerTask>> _wheels; // 用二维数组来表示时间轮
-    int _tick; // 当前指针走到哪里了
-    int _capacity; // 时间轮的容量
 };
 
 // // // // // // // // // // // // EventLoop // // // // // // // // // // // // // // // 
@@ -1090,7 +1090,7 @@ private:
     class Holder
     {
     public:
-        ~Holder() { }
+        virtual ~Holder() { }
 
         virtual const std::type_info& GetType() = 0;
 
@@ -1146,6 +1146,10 @@ private:
         else if (ret == -1) // 读出错
         {
             return ShutDownInLoop(); 
+        }
+        else if (ret == 0)
+        {
+            return ShutDownInLoop();
         }
         else if (ret > 0)
         {
@@ -1448,6 +1452,10 @@ private:
     void HandleListenRead()
     {
         int io_fd = _listen_sock.Accept();
+        if (io_fd == -2)
+        {
+            return;
+        }
         if (io_fd < 0)
         {
             ERR_LOG("Recv New Socket Error!");
@@ -1478,8 +1486,8 @@ public:
 
 private:
     EventLoop* _main_loop;
-    int _listen_fd;
     Socket _listen_sock;
+    int _listen_fd;
     Channel _listen_channel;
     AcceptorCallback _accept_cb;
 };
@@ -1500,9 +1508,9 @@ private:
         _loop->Loop();
     }
 public:
-    LoopThread()
-        : _thread(&LoopThread::ThreadEntry, this)
-        , _loop(nullptr)
+    LoopThread() 
+        : _loop(nullptr)
+        , _thread(&LoopThread::ThreadEntry, this)
     {}
 
     EventLoop* GetLoopPtr()
