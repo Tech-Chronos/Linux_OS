@@ -1,0 +1,1 @@
+/usr/bin/c++  -g -Wall -Wextra CMakeFiles/client.dir/client.cc.o -o client  -lpthread 

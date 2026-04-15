@@ -1,0 +1,1 @@
+/usr/bin/c++  -g -Wall -Wextra CMakeFiles/server.dir/server.cc.o -o server  -lpthread 

@@ -8,6 +8,7 @@
 #include <memory>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 #include <ctime>
 #include <cstdint>
@@ -193,7 +194,7 @@ public:
         ret.resize(size);
 
         Read(ret.data(), size);
-        return std::move(ret);
+        return ret;
     }
 
     std::string ReadStringAndPop(uint64_t size)
@@ -203,7 +204,7 @@ public:
         ret.resize(size);
 
         ReadAndPop(ret.data(), size);
-        return std::move(ret);
+        return ret;
     }
 
     // // // // // // // // // // // // // 获取一整行数据 // // // // // // // // // // // // // // //
@@ -217,7 +218,7 @@ public:
         const char* ch = FindCRLF();
         if (!ch) return "";
 
-        return std::move(ReadString(ch - ReadIndex() + 1));
+        return ReadString(ch - ReadIndex() + 1);
     }
 
     std::string GetLineAndPop()
@@ -225,7 +226,7 @@ public:
         std::string ret = GetLine();
 
         MoveReadOffset(ret.size());
-        return std::move(ret);
+        return ret;
     }
 
     void clear()
@@ -770,10 +771,10 @@ public:
         }  
     }
 private:
+    std::unordered_map<uint64_t, WeakTimerTask> _timers_record;  // 如果要更新，如何找到对应的ptr
     std::vector<std::list<SharedTimerTask>> _wheels; // 用二维数组来表示时间轮
     int _tick; // 当前指针走到哪里了
     int _capacity; // 时间轮的容量
-    std::unordered_map<uint64_t, WeakTimerTask> _timers_record;  // 如果要更新，如何找到对应的ptr
 };
 
 // // // // // // // // // // // // EventLoop // // // // // // // // // // // // // // // 
@@ -1053,7 +1054,6 @@ public:
 
     Any(const Any& other)
     {
-        delete other._holder;
         _holder = other._holder == nullptr ? nullptr : other._holder->Clone();
     }
 
@@ -1318,6 +1318,7 @@ public:
         : _conn_id(conn_id)
         , _timer_id(timer_id)
         , _sockfd(sockfd)
+        , _socket(_sockfd)
         , _enable_inactive_release(false)
         , _loop(loop)
         , _channel(_sockfd, _loop)
@@ -1338,12 +1339,13 @@ public:
     // // // // // // // // // // // // 向外部提供的接口 // // // // // // // // // // // // // // // 
     void Established()
     {
-        _loop->RunInLoop([this] {EstablishedInLoop();});
+        _loop->RunInLoop([this] { EstablishedInLoop(); });
     }
 
     // 发送数据，将这个数据放到发送缓冲区
     void Send(char* message, size_t len)
     {
+
         _loop->RunInLoop([this, message, len]{ SendInLoop(message, len);});
     }
 
@@ -1356,13 +1358,13 @@ public:
     // 开启非活跃连接的释放功能
     void EnableInactiveRelease(int sec)
     {
-        _loop->RunInLoop([this, sec]{ EnableInactiveReleaseInLoop(sec);});
+        _loop->RunInLoop([this, sec]{ EnableInactiveReleaseInLoop(sec); });
     }
 
     // 关闭非活跃事件的释放功能
     void CancelInactiveRelease()
     {
-        _loop->RunInLoop([this]{ CancelInactiveReleaseInLoop();});
+        _loop->RunInLoop([this]{ CancelInactiveReleaseInLoop(); });
     }
 
     void Upgrade(const Any& context, const ConnectedCallback& conn_cb,
@@ -1431,3 +1433,246 @@ private:
     ClosedCallback _closed_cb; // 连接关闭回调函数
     ClosedCallback _server_close_cb; 
 };
+
+// // // // // // // // // // // // Acceptor模块 // // // // // // // // // // // // // // // 
+using AcceptorCallback = std::function<void(int)>; // 新的IO文件描述符到来时需要执行的回调函数
+class Acceptor
+{
+private:
+    int CreateListenSocket(uint16_t port)
+    {
+        _listen_sock.CreateTcpSocket(port);
+        return _listen_sock.Fd();
+    }
+
+    void HandleListenRead()
+    {
+        int io_fd = _listen_sock.Accept();
+        if (io_fd < 0)
+        {
+            ERR_LOG("Recv New Socket Error!");
+            exit(-1);
+        }
+
+        if (_accept_cb)
+            _accept_cb(io_fd);
+    }
+public:
+    Acceptor(EventLoop* loop, uint16_t port)
+        : _main_loop(loop)
+        , _listen_fd(CreateListenSocket(port))
+        , _listen_channel(_listen_fd, _main_loop)
+    {
+       _listen_channel.SetReadCB([this]{ HandleListenRead(); });
+    }
+
+    void Listen()
+    {
+        _listen_channel.EnableRead();
+    }
+
+    void SetAcceptCallback(const AcceptorCallback& cb)
+    {
+        _accept_cb = cb;
+    }
+
+private:
+    EventLoop* _main_loop;
+    int _listen_fd;
+    Socket _listen_sock;
+    Channel _listen_channel;
+    AcceptorCallback _accept_cb;
+};
+
+// // // // // // // // // // // // LoopThread // // // // // // // // // // // // // // // 
+class LoopThread
+{
+private:
+    // 创建EventLoop对象
+    void ThreadEntry()
+    {
+        EventLoop loop;
+        {
+            std::unique_lock<std::mutex> lock(_mtx);
+            _loop = &loop;
+            _cond.notify_all();
+        }
+        _loop->Loop();
+    }
+public:
+    LoopThread()
+        : _thread(&LoopThread::ThreadEntry, this)
+        , _loop(nullptr)
+    {}
+
+    EventLoop* GetLoopPtr()
+    {
+        // 防止如果eventloop还没有构造，外部就要获取
+        {
+            std::unique_lock<std::mutex> lock(_mtx);
+            _cond.wait(lock, [this] { return _loop != nullptr; });
+        }
+        return _loop;
+    }
+
+private:
+    EventLoop* _loop; // 这个线程对应的 EventLoop
+    std::thread _thread;
+
+    std::mutex _mtx; // 防止如果eventloop还没有构造，外部就要获取
+    std::condition_variable _cond; // 所以用条件变量等待
+};
+
+
+// // // // // // // // // // // // LoopThreadPool // // // // // // // // // // // // // // // 
+class LoopThreadPool
+{
+public:
+    LoopThreadPool(EventLoop* base_loop)
+        : _base_loop(base_loop)
+    {}
+
+    void SetThreadSize(int threads_size)
+    {
+        _threads_size = threads_size;
+    }
+
+    void InitPool()
+    {
+        if (_threads_size > 0)
+        {
+            _threads.reserve(_threads_size);
+            _loops.reserve(_threads_size);
+
+            for (int i = 0; i < _threads_size; ++i)
+            {
+                auto t = std::make_unique<LoopThread>();
+                _loops.push_back(t->GetLoopPtr());
+                _threads.push_back(std::move(t));
+            }
+        }   
+    }
+
+    EventLoop* GetNextLoopThread()
+    {
+        if (_threads_size > 0)
+        {
+            _thread_index = (_thread_index + 1) % _threads_size;
+
+            return _loops[_thread_index];
+        }
+        return _base_loop;
+    }
+
+private:
+    int _threads_size = 0;
+    int _thread_index = 0;
+    EventLoop* _base_loop;
+    std::vector<std::unique_ptr<LoopThread>> _threads;
+    std::vector<EventLoop*> _loops;
+};
+
+// // // // // // // // // // // // TcpServer模块 // // // // // // // // // // // // // // // 
+class TcpServer
+{
+private:
+    void AcceptCallback(int io_fd)
+    {
+        ++_conn_id;
+        ++_timer_id;
+        auto conn = std::make_shared<Connection>(_conn_id, _timer_id, io_fd, _pool.GetNextLoopThread()); 
+        conn->SetConnectedCallback(_conn_cb);
+        conn->SetAnyEventCallback(_any_event_cb);
+        conn->SetMessageCallback(_message_cb);
+        conn->SetClosedCallback(_close_cb);
+        conn->SetServerClosedCallback(std::bind(&TcpServer::RemoveFromServer, this, std::placeholders::_1));
+
+        conn->Established();
+
+        if (_enable_inactive_event_release)
+            conn->EnableInactiveRelease(_timeout);
+
+        _conns[_conn_id] = conn;
+    }
+
+    void RemoveFromServer(std::shared_ptr<Connection> conn)
+    {
+        _main_loop.RunInLoop([this, conn]
+        {
+            auto it = _conns.find(conn->ConnId());
+            if (it != _conns.end())  _conns.erase(it); 
+        });
+    }
+public:
+    TcpServer(int port)
+        : _port(port)
+        , _accept(&_main_loop, _port)
+        , _pool(&_main_loop)
+    {
+        _accept.SetAcceptCallback(std::bind(&TcpServer::AcceptCallback, this, std::placeholders::_1));
+        _accept.Listen();
+    }
+
+    void SetThreadCountAndInit(int nums)
+    {
+        _threads_size = nums;
+        _pool.SetThreadSize(_threads_size);
+        _pool.InitPool();
+    }
+
+    void Start()
+    {
+        _main_loop.Loop();
+    }
+
+    void EnableInactiveRelease(int timeout)
+    {
+        _enable_inactive_event_release = true;
+        _timeout = timeout;
+    }
+
+    // 设置回调函数
+    void SetConnectedCallback(const ConnectedCallback& cb)
+    {
+        _conn_cb = cb;
+    }
+
+    void SetMessageCallback(const MessageCallback& cb)
+    {
+        _message_cb = cb;
+    }
+
+    void SetAnyEventCallback(const AnyEventCallback& cb)
+    {
+        _any_event_cb = cb;
+    }
+
+    void SetClosedCallback(const ClosedCallback& cb)
+    {
+        _close_cb = cb;
+    }
+
+
+private:
+    EventLoop _main_loop;
+    int _port;
+    Acceptor _accept;
+
+    std::unordered_map<uint64_t, PtrConnection> _conns;
+    LoopThreadPool _pool;
+
+    int _conn_id = 0;
+    int _timer_id = 0;
+    int _threads_size = 0;
+    bool _enable_inactive_event_release = false; // 是否开启非活跃事件的释放
+    int _timeout = 0;
+
+    ConnectedCallback _conn_cb;
+    AnyEventCallback _any_event_cb;
+    ClosedCallback _close_cb;
+    ClosedCallback _server_close_cb;
+    MessageCallback _message_cb;
+};
+
+
+
