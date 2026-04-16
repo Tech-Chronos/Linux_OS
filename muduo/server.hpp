@@ -896,7 +896,7 @@ public:
         return _thread_id == std::this_thread::get_id();
     }
 
-    bool AssertInLoop()
+    void AssertInLoop()
     {
         assert(_thread_id == std::this_thread::get_id());
     }
@@ -1137,6 +1137,7 @@ private:
     // 当事件来的时候，绑定对应的函数
     void HandleRead()
     {
+        if (_status == DISCONNECTED) return;
         auto self = shared_from_this();
         // 先从socket中读数据，放到inbuffer
         char buffer[65536];
@@ -1322,9 +1323,9 @@ public:
         : _conn_id(conn_id)
         , _timer_id(timer_id)
         , _sockfd(sockfd)
-        , _socket(_sockfd)
         , _enable_inactive_release(false)
         , _loop(loop)
+        , _socket(_sockfd)
         , _channel(_sockfd, _loop)
         , _status(CONNECTING)
     {
@@ -1343,32 +1344,36 @@ public:
     // // // // // // // // // // // // 向外部提供的接口 // // // // // // // // // // // // // // // 
     void Established()
     {
-        _loop->RunInLoop([this] { EstablishedInLoop(); });
+        auto self = shared_from_this();
+        _loop->RunInLoop([self] { self->EstablishedInLoop(); });
     }
 
     // 发送数据，将这个数据放到发送缓冲区
     void Send(char* message, size_t len)
     {
-
-        _loop->RunInLoop([this, message, len]{ SendInLoop(message, len);});
+        auto self = shared_from_this();
+        _loop->RunInLoop([self, message, len]{ self->SendInLoop(message, len);});
     }
 
     // 先检查接收和发送缓冲区是否有数据，有线进行处理，处理完，在关闭
     void ShutDown()
     {
-        _loop->RunInLoop([this]{ ShutDownInLoop();});
+        auto self = shared_from_this();
+        _loop->RunInLoop([self]{  self->ShutDownInLoop();});
     }
 
     // 开启非活跃连接的释放功能
     void EnableInactiveRelease(int sec)
     {
-        _loop->RunInLoop([this, sec]{ EnableInactiveReleaseInLoop(sec); });
+        auto self = shared_from_this();
+        _loop->RunInLoop([self, sec]{  self->EnableInactiveReleaseInLoop(sec); });
     }
 
     // 关闭非活跃事件的释放功能
     void CancelInactiveRelease()
     {
-        _loop->RunInLoop([this]{ CancelInactiveReleaseInLoop(); });
+        auto self = shared_from_this();
+        _loop->RunInLoop([self]{  self->CancelInactiveReleaseInLoop(); });
     }
 
     void Upgrade(const Any& context, const ConnectedCallback& conn_cb,
