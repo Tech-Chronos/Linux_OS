@@ -1,4 +1,5 @@
 /home/dsj/muduo/build/CMakeFiles/server.dir
+/home/dsj/muduo/build/CMakeFiles/http_server.dir
 /home/dsj/muduo/build/CMakeFiles/client.dir
 /home/dsj/muduo/build/CMakeFiles/edit_cache.dir
 /home/dsj/muduo/build/CMakeFiles/rebuild_cache.dir

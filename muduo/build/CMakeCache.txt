@@ -148,7 +148,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=EchoDemo
+CMAKE_PROJECT_NAME:STATIC=MuduoDemo
 
 //Path to a program.
 CMAKE_RANLIB:FILEPATH=/usr/bin/ranlib
@@ -223,6 +223,15 @@ EchoDemo_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 EchoDemo_SOURCE_DIR:STATIC=/home/dsj/muduo
+
+//Value Computed by CMake
+MuduoDemo_BINARY_DIR:STATIC=/home/dsj/muduo/build
+
+//Value Computed by CMake
+MuduoDemo_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
+MuduoDemo_SOURCE_DIR:STATIC=/home/dsj/muduo
 
 
 ########################

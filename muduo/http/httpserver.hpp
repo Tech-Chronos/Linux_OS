@@ -1,18 +1,20 @@
+#pragma once
+
 #include "../server.hpp"
+
+#include <cctype>
+#include <cstdio>
 #include <fstream>
-#include <unordered_map>
+#include <sstream>
+#include <string>
 #include <sys/stat.h>
+#include <unordered_map>
 
-
-std::unordered_map<int, std::string> kHttpStatusText =
-{
-    // 1xx
+static std::unordered_map<int, std::string> kHttpStatusText = {
     {100, "Continue"},
     {101, "Switching Protocols"},
     {102, "Processing"},
     {103, "Early Hints"},
-
-    // 2xx
     {200, "OK"},
     {201, "Created"},
     {202, "Accepted"},
@@ -23,8 +25,6 @@ std::unordered_map<int, std::string> kHttpStatusText =
     {207, "Multi-Status"},
     {208, "Already Reported"},
     {226, "IM Used"},
-
-    // 3xx
     {300, "Multiple Choices"},
     {301, "Moved Permanently"},
     {302, "Found"},
@@ -33,8 +33,6 @@ std::unordered_map<int, std::string> kHttpStatusText =
     {305, "Use Proxy"},
     {307, "Temporary Redirect"},
     {308, "Permanent Redirect"},
-
-    // 4xx
     {400, "Bad Request"},
     {401, "Unauthorized"},
     {402, "Payment Required"},
@@ -64,8 +62,6 @@ std::unordered_map<int, std::string> kHttpStatusText =
     {429, "Too Many Requests"},
     {431, "Request Header Fields Too Large"},
     {451, "Unavailable For Legal Reasons"},
-
-    // 5xx
     {500, "Internal Server Error"},
     {501, "Not Implemented"},
     {502, "Bad Gateway"},
@@ -79,80 +75,62 @@ std::unordered_map<int, std::string> kHttpStatusText =
     {511, "Network Authentication Required"}
 };
 
-
-std::unordered_map<std::string, std::string> kMimeTypes = 
-{
-    // text
-    {".html", "text/html"},
-    {".htm",  "text/html"},
-    {".css",  "text/css"},
-    {".js",   "application/javascript"},
-    {".mjs",  "application/javascript"},
-    {".txt",  "text/plain"},
-    {".csv",  "text/csv"},
-    {".xml",  "application/xml"},
-    {".json", "application/json"},
-    {".md",   "text/markdown"},
-
-    // images
-    {".png",  "image/png"},
-    {".jpg",  "image/jpeg"},
+static std::unordered_map<std::string, std::string> kMimeTypes = {
+    {".html", "text/html; charset=utf-8"},
+    {".htm", "text/html; charset=utf-8"},
+    {".css", "text/css; charset=utf-8"},
+    {".js", "application/javascript; charset=utf-8"},
+    {".mjs", "application/javascript; charset=utf-8"},
+    {".txt", "text/plain; charset=utf-8"},
+    {".csv", "text/csv; charset=utf-8"},
+    {".xml", "application/xml; charset=utf-8"},
+    {".json", "application/json; charset=utf-8"},
+    {".md", "text/markdown; charset=utf-8"},
+    {".png", "image/png"},
+    {".jpg", "image/jpeg"},
     {".jpeg", "image/jpeg"},
-    {".gif",  "image/gif"},
-    {".bmp",  "image/bmp"},
+    {".gif", "image/gif"},
+    {".bmp", "image/bmp"},
     {".webp", "image/webp"},
-    {".svg",  "image/svg+xml"},
-    {".ico",  "image/x-icon"},
-
-    // fonts
-    {".woff",  "font/woff"},
+    {".svg", "image/svg+xml"},
+    {".ico", "image/x-icon"},
+    {".woff", "font/woff"},
     {".woff2", "font/woff2"},
-    {".ttf",   "font/ttf"},
-    {".otf",   "font/otf"},
-
-    // audio
-    {".mp3",  "audio/mpeg"},
-    {".wav",  "audio/wav"},
-    {".ogg",  "audio/ogg"},
+    {".ttf", "font/ttf"},
+    {".otf", "font/otf"},
+    {".mp3", "audio/mpeg"},
+    {".wav", "audio/wav"},
+    {".ogg", "audio/ogg"},
     {".flac", "audio/flac"},
-    {".aac",  "audio/aac"},
-
-    // video
-    {".mp4",  "video/mp4"},
+    {".aac", "audio/aac"},
+    {".mp4", "video/mp4"},
     {".webm", "video/webm"},
-    {".avi",  "video/x-msvideo"},
-    {".mov",  "video/quicktime"},
-    {".mkv",  "video/x-matroska"},
-
-    // archives
-    {".zip",  "application/zip"},
-    {".tar",  "application/x-tar"},
-    {".gz",   "application/gzip"},
-    {".7z",   "application/x-7z-compressed"},
-    {".rar",  "application/vnd.rar"},
-
-    // binary / misc
-    {".pdf",  "application/pdf"},
+    {".avi", "video/x-msvideo"},
+    {".mov", "video/quicktime"},
+    {".mkv", "video/x-matroska"},
+    {".zip", "application/zip"},
+    {".tar", "application/x-tar"},
+    {".gz", "application/gzip"},
+    {".7z", "application/x-7z-compressed"},
+    {".rar", "application/vnd.rar"},
+    {".pdf", "application/pdf"},
     {".wasm", "application/wasm"},
-    {".bin",  "application/octet-stream"},
-    {".exe",  "application/octet-stream"}
+    {".bin", "application/octet-stream"},
+    {".exe", "application/octet-stream"}
 };
 
-// // // // // // // // // // // // Util 模块 // // // // // // // // // // // // // // // 
 class Util
 {
 public:
-    // "abc,b,cvbf,fda"
     static int Split(const std::string& src, const std::string& sep, std::vector<std::string>* arr)
     {
-        // 如果是空，直接返回
         if (src.empty())
             return 0;
-        int offset = 0;
+
+        size_t offset = 0;
         while (offset < src.size())
         {
-            int pos = src.find(sep, offset);
-
+            size_t pos = src.find(sep, offset);
             if (pos != std::string::npos)
             {
                 arr->push_back(src.substr(offset, pos - offset));
@@ -164,9 +142,8 @@ public:
                 break;
             }
         }
-        return arr->size();
+        return static_cast<int>(arr->size());
     }
-
 
     static bool ReadFile(const std::string& filename, std::string* buffer)
     {
@@ -176,26 +153,32 @@ public:
             ERR_LOG("OPEN FILE %s ERROR!", filename.c_str());
             return false;
         }
-        ifs.seekg(0, ifs.end);
-        int filesize = ifs.tellg();
-        ifs.seekg(0, ifs.beg);
 
-        buffer->resize(filesize);
+        ifs.seekg(0, ifs.end);
+        std::streamoff filesize = ifs.tellg();
+        ifs.seekg(0, ifs.beg);
+        if (filesize < 0)
+        {
+            ERR_LOG("READ FILE %s SIZE ERROR", filename.c_str());
+            return false;
+        }
+
+        buffer->resize(static_cast<size_t>(filesize));
+        if (filesize == 0)
+            return true;
 
         ifs.read(buffer->data(), filesize);
         if (!ifs)
         {
             ERR_LOG("READ FILE %s ERROR", filename.c_str());
-            ifs.close();
             return false;
         }
-        ifs.close();
         return true;
     }
 
     static bool WriteFile(const std::string& filename, const std::string& buffer)
     {
-        std::ofstream ofs(filename);
+        std::ofstream ofs(filename, std::ios::binary);
         if (!ofs)
         {
             ERR_LOG("OPEN FILE %s ERROR!", filename.c_str());
@@ -206,22 +189,19 @@ public:
         if (!ofs.good())
         {
             ERR_LOG("WRITE FILE %s ERROR!", filename.c_str());
-            ofs.close();
             return false;
         }
-        ofs.close();
         return true;
     }
 
     static std::string UrlEncode(const std::string& url, bool space_to_plus)
     {
         std::string ret;
-
-        for (auto ch : url)
+        for (unsigned char ch : url)
         {
-            if (ch == '.' || ch == '-' || ch == '_' || ch == '~' || isalnum(ch))
+            if (ch == '.' || ch == '-' || ch == '_' || ch == '~' || std::isalnum(ch))
             {
-                ret += ch;
+                ret += static_cast<char>(ch);
             }
             else if (ch == ' ' && space_to_plus)
             {
@@ -229,115 +209,97 @@ public:
             }
             else
             {
-                char tmp[4] = { 0 };
-                snprintf(tmp, 4, "%%%02X", ch);
+                char tmp[4] = {0};
+                std::snprintf(tmp, sizeof(tmp), "%%%02X", ch);
                 ret += tmp;
             }
         }
-
         return ret;
     }
 
-    static char HexToDecimal(char hex)
+    static int HexToDecimal(char hex)
     {
         if (hex >= '0' && hex <= '9')
-        {
             return hex - '0';
-        }
-        else if (hex >= 'A' && hex <= 'F')
-        {
+        if (hex >= 'A' && hex <= 'F')
             return hex - 'A' + 10;
-        }
-        else if (hex >= 'a' && hex <= 'f')
-        {
+        if (hex >= 'a' && hex <= 'f')
             return hex - 'a' + 10;
-        }
         return -1;
     }
 
     static std::string UrlDecode(const std::string& url, bool plus_to_space)
     {
         std::string ret;
-
-        for (int i = 0; i < url.size(); ++i)
+        for (size_t i = 0; i < url.size(); ++i)
         {
-            if (url[i] == '%' || i + 2 < url.size())
+            if (url[i] == '%' && i + 2 < url.size())
             {
-                char left = url[i + 1];
-                char right = url[i + 2];
-
+                int left = HexToDecimal(url[i + 1]);
+                int right = HexToDecimal(url[i + 2]);
                 if (left >= 0 && right >= 0)
                 {
-                    char character = (left << 4) + right;
-                    ret += character;
+                    ret += static_cast<char>((left << 4) + right);
                     i += 2;
+                    continue;
                 }
             }
-            else if (url[i] == '+' && plus_to_space)
-            {
+
+            if (url[i] == '+' && plus_to_space)
                 ret += ' ';
-            }
-            else 
-            {
+            else
                 ret += url[i];
-            }
         }
         return ret;
     }
 
-    std::string Util::GetStatusDesc(int code)
+    static std::string GetStatusDesc(int code)
     {
         auto it = kHttpStatusText.find(code);
-        if (it == kHttpStatusText.end()) return "Unknown Code";
-        return it->second;
+        return it == kHttpStatusText.end() ? "Unknown Code" : it->second;
     }
 
-    std::string Util::GetMime(const std::string& filename)
+    static std::string GetMime(const std::string& filename)
     {
-        size_t pos = filename.rfind(".");
-        if (pos == std::string::npos) return "Unkwon Suffix";
+        size_t pos = filename.rfind('.');
+        if (pos == std::string::npos)
+            return "application/octet-stream";
 
-        std::string suffix = filename.substr(pos);
-
-        auto it = kMimeTypes.find(suffix);
-        if (it == kMimeTypes.end()) return "Unkwon Suffix";
-        else return it->second;
+        auto it = kMimeTypes.find(filename.substr(pos));
+        return it == kMimeTypes.end() ? "application/octet-stream" : it->second;
     }
 
-    bool IsDirectory(const std::string& filename)
+    static bool StatPath(const std::string& filename, struct stat* st)
     {
-        struct stat st;
-        int ret = stat(filename.c_str(), &st);
-
-        if (ret < 0) return false;
-        return S_ISDIR(st.st_mode);
+        return stat(filename.c_str(), st) == 0;
     }
 
-    // 判断是否是普通文件
-    bool IsRegular(const std::string& filename)
+    static bool IsDirectory(const std::string& filename)
     {
         struct stat st;
-        int ret = stat(filename.c_str(), &st);
-
-        if (ret < 0) return false;
-        return S_ISREG(st.st_mode); // mode 是文件类型 + 权限
+        return StatPath(filename, &st) && S_ISDIR(st.st_mode);
     }
 
-    bool IsValidPath(const std::string& path)
+    static bool IsRegular(const std::string& filename)
+    {
+        struct stat st;
+        return StatPath(filename, &st) && S_ISREG(st.st_mode);
+    }
+
+    static bool IsValidPath(const std::string& path)
     {
         int level = 0;
         std::vector<std::string> subdir;
         Split(path, "/", &subdir);
-        for (auto& e : subdir)
+        for (const auto& e : subdir)
         {
+            if (e.empty() || e == ".")
+                continue;
             if (e == "..")
             {
                 --level;
-                if (level < 0) return false;
-            }
-            else if (e == ".")
-            {
-                continue;
+                if (level < 0)
+                    return false;
             }
             else
             {
@@ -348,28 +310,23 @@ public:
     }
 };
 
-// // // // // // // // // // // // HttpRequest // // // // // // // // // // // // // // // 
 class HttpRequest
 {
-public: 
+public:
     void SetHeaders(const std::string& key, const std::string& val)
     {
         _req_headers[key] = val;
     }
 
-    bool HasHeaders(const std::string& key)
+    bool HasHeaders(const std::string& key) const
     {
-        auto it = _req_headers.find(key);
-        if (it == _req_headers.end())
-            return false;
-        return true;
+        return _req_headers.find(key) != _req_headers.end();
     }
 
-    std::string GetHeaders(const std::string& key)
+    std::string GetHeaders(const std::string& key) const
     {
-        if (HasHeaders(key))
-            return _req_headers[key];
-        return "";
+        auto it = _req_headers.find(key);
+        return it == _req_headers.end() ? "" : it->second;
     }
 
     void SetParams(const std::string& key, const std::string& val)
@@ -377,89 +334,79 @@ public:
         _params[key] = val;
     }
 
-    bool HasParams(const std::string& key)
+    bool HasParams(const std::string& key) const
+    {
+        return _params.find(key) != _params.end();
+    }
+
+    std::string GetParams(const std::string& key) const
     {
         auto it = _params.find(key);
-        if (it == _params.end()) return false;
-        return true;
+        return it == _params.end() ? "" : it->second;
     }
 
-    std::string GetParams(const std::string& key)
+    int ContentLength() const
     {
-        if (HasParams(key)) 
-            return _params[key];
-        return "";
+        if (!HasHeaders("Content-Length"))
+            return 0;
+        return std::stoi(GetHeaders("Content-Length"));
     }
 
-    int ContentLength()
+    bool IsKeepAlive() const
     {
-        if (HasHeaders("Content-Length"))
-        {
-            std::string ret = GetHeaders("Content-Length");
-            return std::stoi(ret);
-        }
-        return 0;
+        if (HasHeaders("Connection"))
+            return GetHeaders("Connection") == "keep-alive";
+        return _http_version == "HTTP/1.1";
     }
 
-    bool IsKeepAlive()
-    {
-        if (HasHeaders("Connection") && GetHeaders("Connection") == "keep-alive")
-            return true;
-        return false;
-    }
-
-    void HttpRequest::Reset()
+    void Reset()
     {
         _method.clear();
-        _http_version.clear();
         _uri.clear();
-        _req_headers.clear();
+        _path.clear();
+        _query_string.clear();
+        _http_version.clear();
+        _body.clear();
         _params.clear();
+        _req_headers.clear();
     }
 
 public:
-    std::string _method; // 请求方法
-    std::string _uri; //请求的path + 查询字符串
-    std::string _path; // 请求资源路径
-    std::string _query_string; // 查询字符串
-    std::string _http_version; // http 版本
-
-    std::string _body; // 请求正文
+    std::string _method;
+    std::string _uri;
+    std::string _path;
+    std::string _query_string;
+    std::string _http_version;
+    std::string _body;
     std::unordered_map<std::string, std::string> _params;
     std::unordered_map<std::string, std::string> _req_headers;
 };
 
-// // // // // // // // // // // // HttpResponse // // // // // // // // // // // // // // // 
 class HttpResponse
 {
 public:
-    HttpResponse(int code)
+    explicit HttpResponse(int code = 200)
         : _code(code)
         , _redirect_flag(false)
     {}
 
     void SetHeaders(const std::string& key, const std::string& val)
     {
-        _headers.insert(std::make_pair(key, val));
+        _headers[key] = val;
     }
 
     bool HasHeaders(const std::string& key) const
     {
-        auto it = _headers.find(key);
-        if (it == _headers.end()) return false;
-        return true;
+        return _headers.find(key) != _headers.end();
     }
 
-    std::string GetHeaders(const std::string& key)
+    std::string GetHeaders(const std::string& key) const
     {
-        if (HasHeaders(key))
-        {
-            return _headers[key];
-        }
-        return "";
+        auto it = _headers.find(key);
+        return it == _headers.end() ? "" : it->second;
     }
 
-    void SetRedirect(const std::string &redirect_uri, int code)
+    void SetRedirect(const std::string& redirect_uri, int code = 302)
     {
         _code = code;
         _redirect_flag = true;
@@ -472,11 +419,9 @@ public:
         SetHeaders("Content-Type", type);
     }
 
-    bool IsKeepAlive()
+    bool IsKeepAlive() const
     {
-        if (HasHeaders("Connection") && GetHeaders("Connection") == "keep-alive")
-            return true;
-        return false;
+        return HasHeaders("Connection") && GetHeaders("Connection") == "keep-alive";
     }
 
     void Reset()
@@ -490,14 +435,12 @@ public:
 
 public:
     int _code;
-
     std::unordered_map<std::string, std::string> _headers;
     std::string _body;
     bool _redirect_flag;
     std::string _redirect_uri;
 };
 
-// // // // // // // // // // // // HttpContext // // // // // // // // // // // // // // // 
 const static int MaxLine = 8192;
 typedef enum
 {
@@ -511,13 +454,12 @@ typedef enum
 class HttpContext
 {
 private:
-    bool RecvReqLine(Buffer *buf)
+    bool RecvReqLine(Buffer* buf)
     {
         if (_status != RECV_REQ_LINE)
             return false;
-        // 没有找到 \r\n 一整行数据
-        std::string req_line = buf->GetLineAndPop();
-        if (req_line.empty())
+
+        if (buf->FindCRLF() == nullptr)
         {
             if (buf->ReadableSize() > MaxLine)
             {
@@ -527,29 +469,39 @@ private:
             }
             return true;
         }
-        // 有一整行数据，但是太长了
+
+        std::string req_line = buf->GetLineAndPop();
         if (req_line.size() > MaxLine)
         {
             _resp_code = 414;
             _status = RECV_REQ_ERROR;
             return false;
         }
-        bool ret = ParseReqLine(req_line);
-        if (ret == false)
+
+        if (!ParseReqLine(req_line))
+        {
+            _resp_code = 400;
+            _status = RECV_REQ_ERROR;
             return false;
+        }
 
         _status = RECV_REQ_HEAD;
         return true;
     }
 
-    bool ParseReqLine(const std::string& req_line)
+    bool ParseReqLine(std::string req_line)
     {
-        // GET /index?a=20 HTTP/1.1
-        size_t pos1 = req_line.find(' ');
-        if (pos1 == std::string::npos) return false;
+        if (!req_line.empty() && req_line.back() == '\n')
+            req_line.pop_back();
+        if (!req_line.empty() && req_line.back() == '\r')
+            req_line.pop_back();
 
+        size_t pos1 = req_line.find(' ');
+        if (pos1 == std::string::npos)
+            return false;
         size_t pos2 = req_line.find(' ', pos1 + 1);
-        if (pos2 == std::string::npos) return false;
+        if (pos2 == std::string::npos)
+            return false;
 
         _request._method = req_line.substr(0, pos1);
         _request._uri = req_line.substr(pos1 + 1, pos2 - pos1 - 1);
@@ -565,17 +517,429 @@ private:
             _request._query_string.clear();
             return true;
         }
+
+        _request._path = _request._uri.substr(0, qpos);
+        _request._query_string = _request._uri.substr(qpos + 1);
+        ParseQueryString();
+        return true;
+    }
+
+    void ParseQueryString()
+    {
+        size_t start = 0;
+        while (start <= _request._query_string.size())
+        {
+            size_t end = _request._query_string.find('&', start);
+            std::string kv = end == std::string::npos
+                ? _request._query_string.substr(start)
+                : _request._query_string.substr(start, end - start);
+
+            if (!kv.empty())
+            {
+                size_t eq_pos = kv.find('=');
+                if (eq_pos != std::string::npos)
+                {
+                    _request.SetParams(Util::UrlDecode(kv.substr(0, eq_pos), true),
+                                       Util::UrlDecode(kv.substr(eq_pos + 1), true));
+                }
+                else
+                {
+                    _request.SetParams(Util::UrlDecode(kv, true), "");
+                }
+            }
+
+            if (end == std::string::npos)
+                break;
+            start = end + 1;
+        }
+    }
+
+    bool RecvReqHead(Buffer* buffer)
+    {
+        if (_status != RECV_REQ_HEAD)
+            return false;
+
+        while (true)
+        {
+            if (buffer->FindCRLF() == nullptr)
+            {
+                if (buffer->ReadableSize() > MaxLine)
+                {
+                    _status = RECV_REQ_ERROR;
+                    _resp_code = 414;
+                    return false;
+                }
+                break;
+            }
+
+            std::string line = buffer->GetLineAndPop();
+            if (line.size() > MaxLine)
+            {
+                _status = RECV_REQ_ERROR;
+                _resp_code = 414;
+                return false;
+            }
+
+            if (line == "\r\n" || line == "\n")
+            {
+                _status = RECV_REQ_BODY;
+                return true;
+            }
+
+            if (!ParseHttpHead(line))
+            {
+                _status = RECV_REQ_ERROR;
+                _resp_code = 400;
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool ParseHttpHead(std::string head)
+    {
+        if (!head.empty() && head.back() == '\n')
+            head.pop_back();
+        if (!head.empty() && head.back() == '\r')
+            head.pop_back();
+
+        size_t pos = head.find(": ");
+        if (pos == std::string::npos)
+            return false;
+
+        _request.SetHeaders(head.substr(0, pos), head.substr(pos + 2));
+        return true;
+    }
+
+    bool RecvHttpBody(Buffer* buf)
+    {
+        if (_status != RECV_REQ_BODY)
+            return false;
+
+        int content_length = _request.ContentLength();
+        if (content_length == 0)
+        {
+            _status = RECV_REQ_OVER;
+            return true;
+        }
+
+        int cur_length = static_cast<int>(_request._body.size());
+        int need_length = content_length - cur_length;
+        if (need_length <= 0)
+        {
+            _status = RECV_REQ_OVER;
+            return true;
+        }
+
+        size_t readable = buf->ReadableSize();
+        if (static_cast<size_t>(need_length) <= readable)
+        {
+            _request._body += buf->ReadStringAndPop(need_length);
+            _status = RECV_REQ_OVER;
+        }
+        else if (readable > 0)
+        {
+            _request._body += buf->ReadStringAndPop(readable);
+        }
+        return true;
     }
 
 public:
-    HttpContext::HttpContext()
-        : _resp_code(200), _status(RECV_REQ_LINE)
+    HttpContext()
+        : _resp_code(200)
+        , _status(RECV_REQ_LINE)
+    {}
+
+    int GetRespCode() const
     {
+        return _resp_code;
     }
 
+    HttpRecvStatus GetStatus() const
+    {
+        return _status;
+    }
+
+    HttpRequest& GetRequest()
+    {
+        return _request;
+    }
+
+    void RecvHttpRequest(Buffer* buf)
+    {
+        switch (_status)
+        {
+        case RECV_REQ_LINE:
+            if (!RecvReqLine(buf))
+                return;
+        case RECV_REQ_HEAD:
+            if (!RecvReqHead(buf))
+                return;
+        case RECV_REQ_BODY:
+            RecvHttpBody(buf);
+            return;
+        default:
+            return;
+        }
+    }
+
+    void Reset()
+    {
+        _resp_code = 200;
+        _status = RECV_REQ_LINE;
+        _request.Reset();
+    }
 
 private:
     int _resp_code;
     HttpRecvStatus _status;
     HttpRequest _request;
+};
+
+using route_func = std::function<void(const HttpRequest&, HttpResponse*)>;
+using Handler = std::unordered_map<std::string, route_func>;
+
+class HttpServer
+{
+private:
+    std::string BuildFilePath(const std::string& path) const
+    {
+        std::string normalized = path.empty() ? "/" : path;
+        if (normalized == "/")
+            normalized = "/index.html";
+        if (normalized.back() == '/')
+            normalized += "index.html";
+        return _base_dir + normalized;
+    }
+
+    void MakeResponse(PtrConnection conn, const HttpRequest& req, HttpResponse* resp)
+    {
+        if (req.IsKeepAlive())
+            resp->SetHeaders("Connection", "keep-alive");
+        else
+            resp->SetHeaders("Connection", "close");
+
+        if (!resp->_body.empty() && !resp->HasHeaders("Content-Length"))
+            resp->SetHeaders("Content-Length", std::to_string(resp->_body.size()));
+        else if (resp->_body.empty() && !resp->HasHeaders("Content-Length"))
+            resp->SetHeaders("Content-Length", "0");
+
+        if (!resp->_body.empty() && !resp->HasHeaders("Content-Type"))
+            resp->SetHeaders("Content-Type", "application/octet-stream");
+
+        if (resp->_redirect_flag)
+            resp->SetHeaders("Location", resp->_redirect_uri);
+
+        std::stringstream resp_str;
+        std::string version = req._http_version.empty() ? "HTTP/1.1" : req._http_version;
+        resp_str << version << " " << resp->_code << " " << Util::GetStatusDesc(resp->_code) << "\r\n";
+        for (const auto& e : resp->_headers)
+            resp_str << e.first << ": " << e.second << "\r\n";
+        resp_str << "\r\n";
+
+        if (req._method != "HEAD")
+            resp_str << resp->_body;
+
+        std::string payload = resp_str.str();
+        conn->Send(payload.c_str(), payload.size());
+    }
+
+    bool IsFileHandler(const HttpRequest& req)
+    {
+        if (req._method != "GET" && req._method != "HEAD")
+            return false;
+        if (req._path.empty() || !Util::IsValidPath(req._path))
+            return false;
+
+        std::string real_path = BuildFilePath(req._path);
+        if (Util::IsDirectory(real_path))
+            real_path += "/index.html";
+        return Util::IsRegular(real_path);
+    }
+
+    void FileHandler(const HttpRequest& req, HttpResponse* resp)
+    {
+        if (!Util::IsValidPath(req._path))
+        {
+            resp->_code = 403;
+            return;
+        }
+
+        std::string real_path = BuildFilePath(req._path);
+        if (Util::IsDirectory(real_path))
+            real_path += "/index.html";
+
+        if (!Util::IsRegular(real_path))
+        {
+            resp->_code = 404;
+            return;
+        }
+
+        std::string body;
+        if (!Util::ReadFile(real_path, &body))
+        {
+            resp->_code = 500;
+            return;
+        }
+
+        resp->_code = 200;
+        resp->SetContent(body, Util::GetMime(real_path));
+    }
+
+    void Dispatcher(const HttpRequest& req, HttpResponse* resp, const Handler& handle)
+    {
+        auto it = handle.find(req._path);
+        if (it == handle.end())
+        {
+            resp->_code = 404;
+            return;
+        }
+        it->second(req, resp);
+    }
+
+    void Route(const HttpRequest& req, HttpResponse* resp)
+    {
+        if (req._path.empty())
+        {
+            resp->_code = 400;
+            return;
+        }
+
+        if (IsFileHandler(req))
+        {
+            FileHandler(req, resp);
+            return;
+        }
+
+        if (req._method == "GET" || req._method == "HEAD")
+            Dispatcher(req, resp, _get_func);
+        else if (req._method == "POST")
+            Dispatcher(req, resp, _post_func);
+        else if (req._method == "PUT")
+            Dispatcher(req, resp, _put_func);
+        else if (req._method == "DELETE")
+            Dispatcher(req, resp, _delete_func);
+        else
+            resp->_code = 405;
+    }
+
+    void ErrorHandler(const HttpRequest&, HttpResponse* resp)
+    {
+        std::string body;
+        body += "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>";
+        body += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+        body += "<title>Error</title></head><body>";
+        body += std::to_string(resp->_code);
+        body += ": ";
+        body += Util::GetStatusDesc(resp->_code);
+        body += "</body></html>";
+        resp->SetContent(body, "text/html; charset=utf-8");
+    }
+
+    void OnMessage(PtrConnection conn, Buffer* buffer)
+    {
+        while (true)
+        {
+            HttpContext* context = conn->GetContext()->GetValAddr<HttpContext>();
+            if (context == nullptr)
+            {
+                conn->SetContext(HttpContext());
+                context = conn->GetContext()->GetValAddr<HttpContext>();
+            }
+
+            context->RecvHttpRequest(buffer);
+            HttpRequest req = context->GetRequest();
+            HttpResponse resp(context->GetRespCode());
+
+            if (context->GetRespCode() >= 400)
+            {
+                ErrorHandler(req, &resp);
+                MakeResponse(conn, req, &resp);
+                buffer->clear();
+                conn->ShutDown();
+                return;
+            }
+
+            if (context->GetStatus() != RECV_REQ_OVER)
+                return;
+
+            Route(req, &resp);
+            if (resp._code >= 400 && resp._body.empty())
+                ErrorHandler(req, &resp);
+            MakeResponse(conn, req, &resp);
+
+            bool keep_alive = resp.IsKeepAlive();
+            context->Reset();
+            if (!keep_alive)
+            {
+                conn->ShutDown();
+                return;
+            }
+
+            if (buffer->ReadableSize() == 0)
+                return;
+        }
+    }
+
+    void OnConnect(PtrConnection conn)
+    {
+        conn->SetContext(HttpContext());
+    }
+
+public:
+    explicit HttpServer(uint16_t port, const std::string& base_dir = "./www")
+        : _server(port)
+        , _base_dir(base_dir)
+    {
+        if (!_base_dir.empty() && _base_dir.back() == '/')
+            _base_dir.pop_back();
+        if (_base_dir.empty())
+            _base_dir = ".";
+
+        _server.SetConnectedCallback(std::bind(&HttpServer::OnConnect, this, std::placeholders::_1));
+        _server.SetMessageCallback(std::bind(&HttpServer::OnMessage, this, std::placeholders::_1, std::placeholders::_2));
+    }
+
+    void Get(const std::string& pattern, const route_func& cb)
+    {
+        _get_func[pattern] = cb;
+    }
+
+    void Post(const std::string& pattern, const route_func& cb)
+    {
+        _post_func[pattern] = cb;
+    }
+
+    void Put(const std::string& pattern, const route_func& cb)
+    {
+        _put_func[pattern] = cb;
+    }
+
+    void Delete(const std::string& pattern, const route_func& cb)
+    {
+        _delete_func[pattern] = cb;
+    }
+
+    void SetThreadCountAndInit(int nums)
+    {
+        _server.SetThreadCountAndInit(nums);
+    }
+
+    void EnableInactiveRelease(int timeout)
+    {
+        _server.EnableInactiveRelease(timeout);
+    }
+
+    void Start()
+    {
+        _server.Start();
+    }
+
+private:
+    TcpServer _server;
+    std::string _base_dir;
+    Handler _get_func;
+    Handler _put_func;
+    Handler _post_func;
+    Handler _delete_func;
 };

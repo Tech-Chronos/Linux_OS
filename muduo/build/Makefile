@@ -130,6 +130,19 @@ server/fast:
 .PHONY : server/fast
 
 #=============================================================================
+# Target rules for targets named http_server
+
+# Build rule for target.
+http_server: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 http_server
+.PHONY : http_server
+
+# fast build rule for target.
+http_server/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/http_server.dir/build.make CMakeFiles/http_server.dir/build
+.PHONY : http_server/fast
+
+#=============================================================================
 # Target rules for targets named client
 
 # Build rule for target.
@@ -166,6 +179,30 @@ client.cc.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/client.cc.s
 .PHONY : client.cc.s
 
+http_server.o: http_server.cc.o
+.PHONY : http_server.o
+
+# target to build an object file
+http_server.cc.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/http_server.dir/build.make CMakeFiles/http_server.dir/http_server.cc.o
+.PHONY : http_server.cc.o
+
+http_server.i: http_server.cc.i
+.PHONY : http_server.i
+
+# target to preprocess a source file
+http_server.cc.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/http_server.dir/build.make CMakeFiles/http_server.dir/http_server.cc.i
+.PHONY : http_server.cc.i
+
+http_server.s: http_server.cc.s
+.PHONY : http_server.s
+
+# target to generate assembly for a file
+http_server.cc.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/http_server.dir/build.make CMakeFiles/http_server.dir/http_server.cc.s
+.PHONY : http_server.cc.s
+
 server.o: server.cc.o
 .PHONY : server.o
 
@@ -199,10 +236,14 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... client"
+	@echo "... http_server"
 	@echo "... server"
 	@echo "... client.o"
 	@echo "... client.i"
 	@echo "... client.s"
+	@echo "... http_server.o"
+	@echo "... http_server.i"
+	@echo "... http_server.s"
 	@echo "... server.o"
 	@echo "... server.i"
 	@echo "... server.s"

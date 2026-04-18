@@ -64,6 +64,7 @@ CMAKE_BINARY_DIR = /home/dsj/muduo/build
 
 # The main recursive "all" target.
 all: CMakeFiles/server.dir/all
+all: CMakeFiles/http_server.dir/all
 all: CMakeFiles/client.dir/all
 .PHONY : all
 
@@ -73,6 +74,7 @@ preinstall:
 
 # The main recursive "clean" target.
 clean: CMakeFiles/server.dir/clean
+clean: CMakeFiles/http_server.dir/clean
 clean: CMakeFiles/client.dir/clean
 .PHONY : clean
 
@@ -83,7 +85,7 @@ clean: CMakeFiles/client.dir/clean
 CMakeFiles/server.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/dsj/muduo/build/CMakeFiles --progress-num=3,4 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/dsj/muduo/build/CMakeFiles --progress-num=5,6 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
@@ -101,6 +103,32 @@ server: CMakeFiles/server.dir/rule
 CMakeFiles/server.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/clean
 .PHONY : CMakeFiles/server.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/http_server.dir
+
+# All Build rule for target.
+CMakeFiles/http_server.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/http_server.dir/build.make CMakeFiles/http_server.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/http_server.dir/build.make CMakeFiles/http_server.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/dsj/muduo/build/CMakeFiles --progress-num=3,4 "Built target http_server"
+.PHONY : CMakeFiles/http_server.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/http_server.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/dsj/muduo/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/http_server.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/dsj/muduo/build/CMakeFiles 0
+.PHONY : CMakeFiles/http_server.dir/rule
+
+# Convenience name for target.
+http_server: CMakeFiles/http_server.dir/rule
+.PHONY : http_server
+
+# clean rule for target.
+CMakeFiles/http_server.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/http_server.dir/build.make CMakeFiles/http_server.dir/clean
+.PHONY : CMakeFiles/http_server.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/client.dir

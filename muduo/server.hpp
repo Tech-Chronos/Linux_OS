@@ -1226,7 +1226,7 @@ private:
     }
 
     // 放到缓冲区，不是真正的发送
-    void SendInLoop(char* message, size_t len)
+    void SendInLoop(const char* message, size_t len)
     {
         if (_status == DISCONNECTED)
             return;
@@ -1349,7 +1349,7 @@ public:
     }
 
     // 发送数据，将这个数据放到发送缓冲区
-    void Send(char* message, size_t len)
+    void Send(const char* message, size_t len)
     {
         auto self = shared_from_this();
         _loop->RunInLoop([self, message, len]{ self->SendInLoop(message, len);});
@@ -1421,6 +1421,15 @@ public:
         _server_close_cb = cb;
     }
 
+    Any* GetContext()
+    {
+        return &_context;
+    }
+
+    void SetContext(Any context)
+    {
+        _context = context;
+    }
 private:
     uint64_t _conn_id; // 连接id
     uint64_t _timer_id; // 定时器id
