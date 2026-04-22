@@ -1,0 +1,119 @@
+<mxfile host="app.diagrams.net" modified="2026-04-18T00:00:00.000Z" agent="ChatGPT" version="24.7.17">
+  <diagram id="http-module" name="HTTP-Module">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="High-Concurrency HTTP Module Architecture" style="text;html=1;strokeColor=none;fillColor=none;fontSize=22;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="420" y="20" width="760" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="client" value="Browser / Curl / Postman" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="140" width="220" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- TCP Layer -->
+        <mxCell id="tcp" value="TcpServer&#xa;Connection / Buffer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="130" width="240" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- HTTP Context -->
+        <mxCell id="context" value="HttpContext&#xa;Finite State Machine" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="80" width="300" height="260" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="line" value="RecvLine()" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="context">
+          <mxGeometry x="20" y="50" width="110" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="header" value="RecvHeader()" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="context">
+          <mxGeometry x="160" y="50" width="110" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="body" value="RecvBody()" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="context">
+          <mxGeometry x="90" y="120" width="110" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="request" value="HttpRequest&#xa;Method / URI / Version&#xa;Headers / Body" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5e1;strokeColor=#82b366;" vertex="1" parent="context">
+          <mxGeometry x="45" y="185" width="210" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Router -->
+        <mxCell id="router" value="Router / Dispatcher&#xa;Regex Route Match" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="145" width="140" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- Handlers -->
+        <mxCell id="handler" value="Business Handlers&#xa;/login&#xa;/upload&#xa;/user/info" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="100" width="220" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- Response -->
+        <mxCell id="response" value="HttpResponse&#xa;Code / Headers / Body" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="420" width="240" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Serializer -->
+        <mxCell id="serialize" value="WriteResponse()&#xa;HTTP/1.1 200 OK&#xa;Content-Length" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="700" y="430" width="280" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Send -->
+        <mxCell id="send" value="Connection::Send()&#xa;Output Buffer&#xa;EPOLLOUT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="360" y="430" width="240" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- KeepAlive -->
+        <mxCell id="keep" value="Keep-Alive / Close&#xa;TimerWheel Idle Timeout" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="430" width="220" height="110" as="geometry"/>
+        </mxCell>
+
+        <!-- arrows -->
+        <mxCell id="e1" edge="1" parent="1" source="client" target="tcp" style="endArrow=block;strokeColor=#00aa00;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e2" edge="1" parent="1" source="tcp" target="context" style="endArrow=block;strokeColor=#00aa00;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e3" edge="1" parent="1" source="context" target="router" style="endArrow=block;strokeColor=#00aa00;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e4" edge="1" parent="1" source="router" target="handler" style="endArrow=block;strokeColor=#00aa00;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e5" edge="1" parent="1" source="handler" target="response" style="endArrow=block;strokeColor=#0066cc;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e6" edge="1" parent="1" source="response" target="serialize" style="endArrow=block;strokeColor=#0066cc;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e7" edge="1" parent="1" source="serialize" target="send" style="endArrow=block;strokeColor=#0066cc;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e8" edge="1" parent="1" source="send" target="client" style="endArrow=block;strokeColor=#0066cc;strokeWidth=3;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e9" edge="1" parent="1" source="keep" target="send" style="endArrow=block;strokeColor=#cc0000;strokeWidth=3;dashed=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- legend -->
+        <mxCell id="legend" value="Green: Request Flow&#xa;Blue: Response Flow&#xa;Red: KeepAlive / Timeout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="420" width="220" height="120" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
