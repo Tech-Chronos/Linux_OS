@@ -5,10 +5,12 @@
 #include <cctype>
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <unordered_map>
+#include <vector>
 
 static std::unordered_map<int, std::string> kHttpStatusText = {
     {100, "Continue"},
@@ -345,6 +347,22 @@ public:
         return it == _params.end() ? "" : it->second;
     }
 
+    void SetPathParam(const std::string& key, const std::string& val)
+    {
+        _path_params[key] = val;
+    }
+
+    bool HasPathParam(const std::string& key) const
+    {
+        return _path_params.find(key) != _path_params.end();
+    }
+
+    std::string GetPathParam(const std::string& key) const
+    {
+        auto it = _path_params.find(key);
+        return it == _path_params.end() ? "" : it->second;
+    }
+
     int ContentLength() const
     {
         if (!HasHeaders("Content-Length"))
@@ -368,6 +386,7 @@ public:
         _http_version.clear();
         _body.clear();
         _params.clear();
+        _path_params.clear();
         _req_headers.clear();
     }
 
@@ -379,6 +398,7 @@ public:
     std::string _http_version;
     std::string _body;
     std::unordered_map<std::string, std::string> _params;
+    std::unordered_map<std::string, std::string> _path_params;
     std::unordered_map<std::string, std::string> _req_headers;
 };
 
@@ -697,7 +717,14 @@ private:
 };
 
 using route_func = std::function<void(const HttpRequest&, HttpResponse*)>;
-using Handler = std::unordered_map<std::string, route_func>;
+
+struct RouteItem
+{
+    std::string _pattern;
+    route_func _cb;
+};
+
+using RouteTable = std::vector<RouteItem>;
 
 class HttpServer
 {
@@ -757,6 +784,37 @@ private:
         return Util::IsRegular(real_path);
     }
 
+    bool MatchRoute(const std::string& pattern, const std::string& path,
+                    std::unordered_map<std::string, std::string>* params) const
+    {
+        std::vector<std::string> pattern_segments;
+        std::vector<std::string> path_segments;
+        Util::Split(pattern, "/", &pattern_segments);
+        Util::Split(path, "/", &path_segments);
+
+        if (pattern_segments.size() != path_segments.size())
+            return false;
+
+        std::unordered_map<std::string, std::string> matched;
+        for (size_t i = 0; i < pattern_segments.size(); ++i)
+        {
+            const std::string& pattern_segment = pattern_segments[i];
+            const std::string& path_segment = path_segments[i];
+
+            if (pattern_segment.size() > 1 && pattern_segment[0] == ':')
+            {
+                matched[pattern_segment.substr(1)] = Util::UrlDecode(path_segment, false);
+                continue;
+            }
+
+            if (pattern_segment != path_segment)
+                return false;
+        }
+
+        *params = std::move(matched);
+        return true;
+    }
+
     void FileHandler(const HttpRequest& req, HttpResponse* resp)
     {
         if (!Util::IsValidPath(req._path))
@@ -786,15 +844,33 @@ private:
         resp->SetContent(body, Util::GetMime(real_path));
     }
 
-    void Dispatcher(const HttpRequest& req, HttpResponse* resp, const Handler& handle)
+    void Dispatcher(const HttpRequest& req, HttpResponse* resp, const RouteTable& routes)
     {
-        auto it = handle.find(req._path);
-        if (it == handle.end())
+        for (const auto& route : routes)
         {
-            resp->_code = 404;
+            if (route._pattern == req._path)
+            {
+                route._cb(req, resp);
+                return;
+            }
+        }
+
+        for (const auto& route : routes)
+        {
+            std::unordered_map<std::string, std::string> params;
+            if (route._pattern.find(':') == std::string::npos)
+                continue;
+            if (!MatchRoute(route._pattern, req._path, &params))
+                continue;
+
+            HttpRequest matched_req = req;
+            for (const auto& param : params)
+                matched_req.SetPathParam(param.first, param.second);
+            route._cb(matched_req, resp);
             return;
         }
-        it->second(req, resp);
+
+        resp->_code = 404;
     }
 
     void Route(const HttpRequest& req, HttpResponse* resp)
@@ -812,13 +888,13 @@ private:
         }
 
         if (req._method == "GET" || req._method == "HEAD")
-            Dispatcher(req, resp, _get_func);
+            Dispatcher(req, resp, _get_routes);
         else if (req._method == "POST")
-            Dispatcher(req, resp, _post_func);
+            Dispatcher(req, resp, _post_routes);
         else if (req._method == "PUT")
-            Dispatcher(req, resp, _put_func);
+            Dispatcher(req, resp, _put_routes);
         else if (req._method == "DELETE")
-            Dispatcher(req, resp, _delete_func);
+            Dispatcher(req, resp, _delete_routes);
         else
             resp->_code = 405;
     }
@@ -902,22 +978,22 @@ public:
 
     void Get(const std::string& pattern, const route_func& cb)
     {
-        _get_func[pattern] = cb;
+        AddRoute(pattern, cb, &_get_routes);
     }
 
     void Post(const std::string& pattern, const route_func& cb)
     {
-        _post_func[pattern] = cb;
+        AddRoute(pattern, cb, &_post_routes);
     }
 
     void Put(const std::string& pattern, const route_func& cb)
     {
-        _put_func[pattern] = cb;
+        AddRoute(pattern, cb, &_put_routes);
     }
 
     void Delete(const std::string& pattern, const route_func& cb)
     {
-        _delete_func[pattern] = cb;
+        AddRoute(pattern, cb, &_delete_routes);
     }
 
     void SetThreadCountAndInit(int nums)
@@ -936,10 +1012,16 @@ public:
     }
 
 private:
+    void AddRoute(const std::string& pattern, const route_func& cb, RouteTable* routes)
+    {
+        routes->push_back({pattern, cb});
+    }
+
+private:
     TcpServer _server;
     std::string _base_dir;
-    Handler _get_func;
-    Handler _put_func;
-    Handler _post_func;
-    Handler _delete_func;
+    RouteTable _get_routes;
+    RouteTable _put_routes;
+    RouteTable _post_routes;
+    RouteTable _delete_routes;
 };
